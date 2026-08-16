@@ -1,0 +1,108 @@
+# agent-config.yml
+# Central configuration for the autonomous multi-agent pipeline.
+# Edit this file to change models, skills, and runtime behaviour.
+# Run `python scripts/validate_config.py` after editing.
+
+# --- Providers ---
+# Add any provider here. Each role picks one via its `provider:` field.
+# Supported providers: anthropic | openai | google | mistral
+providers:
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}      # export ANTHROPIC_API_KEY=sk-ant-...
+    api_url: https://api.anthropic.com
+  openai:
+    api_key: ${OPENAI_API_KEY}         # export OPENAI_API_KEY=sk-...
+    api_url: https://api.openai.com/v1
+  # google:
+  #   api_key: ${GOOGLE_API_KEY}
+  #   api_url: https://generativelanguage.googleapis.com/v1beta
+  # mistral:
+  #   api_key: ${MISTRAL_API_KEY}
+  #   api_url: https://api.mistral.ai/v1
+
+default_provider: anthropic            # Used when a role omits `provider:`
+
+pipeline:
+  parallel_execution: true      # Run independent tasks concurrently
+  max_tester_retries: 3         # Tester→Coder loop limit before human escalation
+
+roles:
+  orchestrator:
+    provider: anthropic
+    model: claude-opus-4-8
+    tools:
+      - read_files
+      - task_planning
+    skills:
+      - ask-matt                # Routes orchestrator to the right skill per situation
+
+  analyst:
+    provider: anthropic
+    model: claude-sonnet-5
+    tools:
+      - read_files
+      - web_search
+    skills:
+      - to-spec                 # Converts requirements into a published spec
+      - domain-modeling         # Pins down terminology and ubiquitous language
+      - research                # Investigates questions against primary sources
+
+  designer:
+    provider: anthropic
+    model: claude-sonnet-5
+    optional: true              # Only activated when task has a UI/UX component
+    tools:
+      - read_files
+      - write_files
+    skills:
+      - prototype               # Throwaway single-file HTML prototype
+      - frontend-design         # Full design system work
+
+  architect:
+    provider: anthropic
+    model: claude-opus-4-8
+    tools:
+      - read_files
+      - write_files
+    skills:
+      - to-tickets              # Breaks spec into tasks with blocking-edge declarations
+      - codebase-design         # Enforces small interfaces and clean seams
+
+  coder:
+    provider: anthropic
+    model: claude-sonnet-5
+    tools:
+      - read_files
+      - write_files
+      - terminal
+    skills:
+      - implement               # Builds from spec/tickets with TDD at seams
+      - diagnosing-bugs         # Disciplined red→minimise→fix→regression loop
+
+  tester:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    tools:
+      - read_files
+      - terminal
+    skills:
+      - tdd                     # Red-green-refactor loop, one vertical slice at a time
+      - code-review             # Parallel sub-agent review across coding standards + spec
+
+  deployer:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    tools:
+      - terminal
+      - git
+    skills:
+      - proj-deploy             # Custom skill: reads deploy section below
+
+deploy:
+  container_runtime: none       # docker | podman | none
+  registry: none                # docker.io | ghcr.io | local | none
+  target_environment: local     # local | staging | production
+  build_tool: none              # dockerfile | compose | none
+  pre_deploy_checks:
+    - tests
+    - lint
