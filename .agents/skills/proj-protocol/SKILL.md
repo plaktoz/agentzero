@@ -103,9 +103,12 @@ When activating a role, provide this context brief:
 **Your output:** [what you must produce — be specific]
 **Model:** [from agent-config.yml roles.[role].model]
 **Tools available:** [from agent-config.yml roles.[role].tools]
+**Lessons from prior runs:** [top-5 distilled lessons matching role:[role] filtered from knowledge_base/lessons/distilled/ — omit if KB is empty]
 ```
 
 Roles have no persistent memory between activations. Always give the full context brief.
+
+**How to populate lessons:** before activating any role, read `knowledge_base/index.md`. Filter `knowledge_base/lessons/distilled/` for files tagged with the role's name and the current run's `project_type` and `failure_type`. Inject the top-5 as bullets. If the KB is empty, omit the field entirely.
 
 ---
 
@@ -127,8 +130,8 @@ The quality gate runs autonomously after Tester Ensemble Phase 2, before Gate 3.
 2. **Coder reads tests first.** Coder's job is to make the tests pass.
 3. **Tester Ensemble Phase 2 runs AFTER Coder.** The ensemble runs all tests and reports results.
 4. **Ensemble order (both phases):** tester_generator_a + tester_generator_b run in parallel → tester_consolidator deduplicates and merges → tester_arbiter resolves disagreements. Escalate critical unresolved conflicts to the user.
-5. **On failure:** tester_consolidator writes a structured failure report to `state.md#test-results`. Orchestrator sends the report to Coder and increments the retry counter.
-6. **Retry limit:** Read `pipeline.max_tester_retries` from `agent-config.yml`. When reached: STOP and report to the user — "Tester retry limit reached ([n]/[max]). Human intervention required. Failures: [list]"
+5. **On failure:** tester_consolidator writes a structured failure report to `state.md#test-results`. Before re-activating Coder, the Orchestrator refreshes the KB injection: filter `knowledge_base/lessons/distilled/` for `role:coder` and `failure_type:tdd-retry-limit`, inject top-5 into the retry brief alongside the failure report.
+6. **Retry limit:** Read `pipeline.max_tester_retries` from `agent-config.yml`. When reached: STOP, invoke the `lessons` skill, then report to the user — "Tester retry limit reached ([n]/[max]). Human intervention required. Failures: [list]"
 7. **Test types required:** Both unit tests (per function/method) and integration tests (cross-component flows) must exist before Coder starts.
 
 ---

@@ -53,13 +53,15 @@ Severity: **high** if tests fail or linter errors exist.
 
 Read `state.md#gate-1` (spec + acceptance criteria).
 
-Check each changed file against these principles:
+Check each changed file against the base principles:
 - No scope creep — changes implement what the spec says, nothing more
 - No bolted-on changes — if a design flaw was found, it should be redesigned, not patched around
 - No dead code introduced
 - Interfaces stay small — new public API surface must be justified by the spec
 
-Severity: **high** if scope creep or bolted-on changes detected; **medium** otherwise.
+Then read `knowledge_base/lessons/distilled/` and filter for lessons tagged `role:coder` or `role:tester_ensemble` for the current `project_type`. Treat each distilled lesson's **Corrective action** bullets as additional compliance rules for this check. If a changed file violates a distilled lesson's corrective action, that is a principle compliance finding.
+
+Severity: **high** if scope creep or bolted-on changes detected, or if a distilled lesson's corrective action is violated; **medium** otherwise.
 
 ---
 
