@@ -159,12 +159,28 @@ Read the `## Feature & Task Breakdown` table in `state.md`:
 
 Stop and report to the user when:
 - TDD retry limit is reached
+- Quality gate retry limit is reached
 - A deploy command fails
 - A role cannot complete its task after two attempts
 - A blocked task's dependency is `closed` but the task still cannot start
 - The task is ambiguous and no skill covers it
 
 Always include: what happened, what was tried, what the user needs to decide.
+
+**After every escalation:** invoke the `lessons` skill. The Orchestrator runs the full Observe → Extract → Validate → Distill pipeline against the failed run before handing off to the user.
+
+---
+
+## Lessons Retrieval at Pipeline Start
+
+At the start of every pipeline run, before activating the first role, the Orchestrator:
+
+1. Reads `knowledge_base/index.md`
+2. Filters `knowledge_base/lessons/distilled/` by tags matching the current run (`role`, `failure_type`, `language`, `project_type`)
+3. Injects the top-5 matching lessons into each role's context brief under `## Lessons from prior runs`
+4. If `knowledge_base/guardrails_candidates.md` is non-empty, surface a reminder: "There are [n] guardrail candidates awaiting your review: `knowledge_base/guardrails_candidates.md`"
+
+Skip retrieval if `knowledge_base/lessons/distilled/` is empty.
 
 ---
 

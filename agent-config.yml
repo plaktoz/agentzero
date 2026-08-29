@@ -49,6 +49,7 @@ roles:
       - task_planning
     skills:
       - ask-matt                # Routes orchestrator to the right skill per situation
+      - lessons                 # Lessons pipeline — triggered on failures/escalations; injects KB at run start
 
   analyst:
     provider: anthropic
