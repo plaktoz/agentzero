@@ -36,7 +36,7 @@ Write the execution plan to `state.md` under `## Gate 0: Execution Plan`:
 ```
 **Classification:** bug
 
-**Roles Activated:** Analyst, Tester, Coder, Deployer
+**Roles Activated:** Analyst, Tester Ensemble, Coder, Release Documenter, Deployer
 
 **Designer Activated:** no
 
@@ -44,18 +44,27 @@ Write the execution plan to `state.md` under `## Gate 0: Execution Plan`:
 1. Analyst → skill: to-spec
    Output: bug spec + reproduction steps + acceptance criteria → state.md#gate-1
    [GATE 1: human approval required]
-2. Tester Phase 1 → skill: tdd
+2. Tester Ensemble Phase 1 → skill: tdd
    Reads: bug spec + acceptance criteria
+   2a. tester_generator_a + tester_generator_b in parallel → each generates failing tests
+   2b. tester_consolidator → deduplicates → state.md#tests
+   2c. tester_arbiter → resolves disagreements
    Output: failing tests that reproduce the bug → state.md#tests
 3. Coder → skill: diagnosing-bugs
    Reads: bug spec + failing tests from state.md
    Output: fix + source files → state.md#code-artifacts
-4. Tester Phase 2 → skill: tdd
+4. Tester Ensemble Phase 2 → skill: tdd
    Reads: state.md#tests + all source files
+   4a. tester_generator_a + tester_generator_b in parallel → each runs tests and reports
+   4b. tester_consolidator → merges results → state.md#test-results
+   4c. tester_arbiter → resolves disagreements
    Output: test results → state.md#test-results
    Max retries: [pipeline.max_tester_retries]
    [GATE 3: human approval required before deploying]
-5. Deployer → skill: proj-deploy
+5. Release Documenter → skill: proj-deploy
+   Reads: state.md in full
+   Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
+6. Deployer → skill: proj-deploy
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval.

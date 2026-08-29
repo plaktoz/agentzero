@@ -50,7 +50,7 @@ Example:
 ```
 | 2026-08-16 09:12 | Orchestrator | Created execution plan | pipeline/feat-dark-mode/state.md#gate-0 | complete |
 | 2026-08-16 09:15 | Analyst | Wrote spec via to-spec | pipeline/feat-dark-mode/state.md#gate-1 | complete |
-| 2026-08-16 09:45 | Tester | Ran tests (retry 2/3) | pipeline/feat-dark-mode/state.md#test-results | failed |
+| 2026-08-16 09:45 | Tester Ensemble | Ran tests (retry 2/3) | pipeline/feat-dark-mode/state.md#test-results | failed |
 ```
 
 Create `log.md` with a header row when the run folder is first created:
@@ -111,12 +111,13 @@ Roles have no persistent memory between activations. Always give the full contex
 
 ## TDD Loop Rules
 
-1. **Tester Phase 1 runs BEFORE Coder.** Tests are written from the spec, not from the code.
+1. **Tester Ensemble Phase 1 runs BEFORE Coder.** Tests are written from the spec, not from the code.
 2. **Coder reads tests first.** Coder's job is to make the tests pass.
-3. **Tester Phase 2 runs AFTER Coder.** Tester runs all tests and reports results.
-4. **On failure:** Tester writes a structured failure report to `state.md#test-results`. Orchestrator sends the report to Coder and increments the retry counter.
-5. **Retry limit:** Read `pipeline.max_tester_retries` from `agent-config.yml`. When reached: STOP and report to the user — "Tester retry limit reached ([n]/[max]). Human intervention required. Failures: [list]"
-6. **Test types required:** Both unit tests (per function/method) and integration tests (cross-component flows) must exist before Coder starts.
+3. **Tester Ensemble Phase 2 runs AFTER Coder.** The ensemble runs all tests and reports results.
+4. **Ensemble order (both phases):** tester_generator_a + tester_generator_b run in parallel → tester_consolidator deduplicates and merges → tester_arbiter resolves disagreements. Escalate critical unresolved conflicts to the user.
+5. **On failure:** tester_consolidator writes a structured failure report to `state.md#test-results`. Orchestrator sends the report to Coder and increments the retry counter.
+6. **Retry limit:** Read `pipeline.max_tester_retries` from `agent-config.yml`. When reached: STOP and report to the user — "Tester retry limit reached ([n]/[max]). Human intervention required. Failures: [list]"
+7. **Test types required:** Both unit tests (per function/method) and integration tests (cross-component flows) must exist before Coder starts.
 
 ---
 
@@ -157,7 +158,7 @@ Always include: what happened, what was tried, what the user needs to decide.
 
 ## Skill Selection Guide
 
-| Classification | Analyst | Architect | Coder | Tester |
+| Classification | Analyst | Architect | Coder | Tester Ensemble |
 |---|---|---|---|---|
 | New feature | `to-spec` | `to-tickets` + `codebase-design` | `implement` | `tdd` + `code-review` |
 | Bug fix | `to-spec` | *(skip)* | `diagnosing-bugs` | `tdd` |

@@ -9,8 +9,10 @@ A Claude Code project template that turns a single AI session into a structured,
 You describe a task. The **Orchestrator** (Claude Code, guided by `CLAUDE.md`) routes it through specialized roles:
 
 ```
-User Task → Orchestrator → Analyst → Designer* → Architect → Tester → Coder → Tester → Deployer
+User Task → Orchestrator → Analyst → Designer* → Architect → Tester Ensemble → Coder → Tester Ensemble → Release Documenter → Deployer
                                     (* only for UI tasks)
+
+Tester Ensemble: generator_a + generator_b (parallel) → consolidator → arbiter
 ```
 
 Human approval gates pause the pipeline at the spec, design, and test stages before any irreversible step proceeds.
@@ -21,25 +23,45 @@ Human approval gates pause the pipeline at the spec, design, and test stages bef
 
 - [Claude Code](https://claude.ai/code) CLI installed
 - Python 3.9+ (for config validation)
-- An Anthropic API key
+- API keys for the providers you want to use
 
 ---
 
 ## Setup
 
-**1. Set your API key**
+**1. Configure your API keys**
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+cp .env.example .env
 ```
 
-**2. Install Python dependencies**
+Then open `.env` and fill in your keys:
 
 ```bash
-pip install pyyaml
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+
+OPENAI_API_KEY=sk-...          # only needed if using the OpenAI provider
+OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-**3. Validate the config**
+**2. Create a virtual environment and install dependencies**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r scripts/requirements.txt
+```
+
+**3. Check provider connectivity**
+
+```bash
+python scripts/check_providers.py
+```
+
+You should see: `All providers connected successfully.`
+
+**4. Validate the config**
 
 ```bash
 python scripts/validate_config.py
@@ -47,7 +69,7 @@ python scripts/validate_config.py
 
 You should see: `✓ agent-config.yml is valid`
 
-**4. Open Claude Code in this directory**
+**5. Open Claude Code in this directory**
 
 ```bash
 claude
@@ -120,6 +142,10 @@ State is committed to git so pipelines survive across sessions and machines.
 |---|---|
 | `agent-config.yml` | Central config — models, roles, tools, skills, deploy settings |
 | `CLAUDE.md` | Orchestrator identity and command reference |
+| `.env.example` | Template for API keys — commit this, copy to `.env` |
+| `.env` | Your actual API keys — never commit this |
+| `scripts/requirements.txt` | Python dependencies |
+| `scripts/check_providers.py` | Live connectivity check for all configured providers |
 | `scripts/validate_config.py` | Validates `agent-config.yml` structure |
 
 ---
@@ -202,7 +228,11 @@ claude
 | Designer | claude-sonnet-5 | UI/UX tasks only |
 | Architect | claude-opus-4-8 | Features, refactors |
 | Coder | claude-sonnet-5 | Every task with code |
-| Tester | claude-haiku-4-5 | Every task with code |
-| Deployer | claude-haiku-4-5 | After Gate 3 approval |
+| Tester Generator A | claude-haiku-4-5 (Anthropic) | Every task with code |
+| Tester Generator B | gpt-5.4 (OpenAI) | Every task with code — independent perspective |
+| Tester Arbiter | claude-sonnet-5 | Resolves disagreements between generators |
+| Tester Consolidator | claude-haiku-4-5 | Deduplicates findings, produces `test_plan.md` |
+| Release Documenter | claude-sonnet-5 | After Gate 3 — compiles signoff package |
+| Deployer | claude-haiku-4-5 | After signoff approval |
 
 Models can be changed per-role in `agent-config.yml`.

@@ -36,7 +36,7 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
 ```
 **Classification:** feature
 
-**Roles Activated:** Analyst, [Designer — if task has UI/UX], Architect, Tester, Coder, Deployer
+**Roles Activated:** Analyst, [Designer — if task has UI/UX], Architect, Tester Ensemble, Coder, Release Documenter, Deployer
 
 **Designer Activated:** [yes | no]
 
@@ -50,19 +50,28 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
 3. Architect → skill: to-tickets + codebase-design
    Reads: Gate 1 spec (+ Gate 2 design if present)
    Output: feature/task breakdown table → state.md#feature-task-breakdown
-4. Tester Phase 1 → skill: tdd
+4. Tester Ensemble Phase 1 → skill: tdd
    Reads: spec + acceptance criteria
+   4a. tester_generator_a + tester_generator_b in parallel → each generates test cases
+   4b. tester_consolidator → deduplicates, produces test_plan.md → state.md#tests
+   4c. tester_arbiter → resolves any generator disagreements before finalizing
    Output: unit tests + integration tests → state.md#tests
 5. Coder → skill: implement
    Reads: spec + tests from state.md
    Output: source files → state.md#code-artifacts
    Parallel execution: [per pipeline.parallel_execution in agent-config.yml]
-6. Tester Phase 2 → skill: tdd + code-review
+6. Tester Ensemble Phase 2 → skill: tdd + code-review
    Reads: state.md#tests + all source files
+   6a. tester_generator_a + tester_generator_b in parallel → each runs tests and reports
+   6b. tester_consolidator → merges results → state.md#test-results
+   6c. tester_arbiter → resolves disagreements; escalates critical failures to human
    Output: test results → state.md#test-results
    Max retries: [pipeline.max_tester_retries]
    [GATE 3: human approval required before deploying]
-7. Deployer → skill: proj-deploy
+7. Release Documenter → skill: proj-deploy
+   Reads: state.md in full
+   Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
+8. Deployer → skill: proj-deploy
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval before proceeding.

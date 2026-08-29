@@ -35,10 +35,11 @@ Identify the last completed step by scanning the sections present:
 - Gate 0 approved → execution plan exists, ready for Analyst
 - Gate 1 approved → spec exists, ready for Designer (if activated) or Architect
 - Gate 2 approved → design exists, ready for Architect
-- Architect complete → task breakdown exists, ready for Tester Phase 1
-- Tester Phase 1 complete → tests exist, ready for Coder
-- Coder complete → code artifacts listed, ready for Tester Phase 2
-- Gate 3 approved → ready for Deployer
+- Architect complete → task breakdown exists, ready for Tester Ensemble Phase 1
+- Tester Ensemble Phase 1 complete → tests exist, ready for Coder
+- Coder complete → code artifacts listed, ready for Tester Ensemble Phase 2
+- Gate 3 approved → ready for Release Documenter
+- Release Documenter complete → signoff_package.md exists, ready for Deployer
 
 ---
 
