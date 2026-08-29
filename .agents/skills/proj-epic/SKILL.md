@@ -29,36 +29,65 @@ Read `agent-config.yml` for role configs.
 
 ---
 
-## Step 2: Feature Decomposition (Gate 0)
+## Step 2: Epic Spec (Gate 0)
 
-Activate the **Analyst** to break the epic into individual features.
+Activate the **Analyst** → skill: `to-spec` (or `research` + `to-spec` if the domain is unfamiliar).
 
 **Analyst brief:**
 - Read the epic description
-- Produce a feature breakdown: a numbered list of self-contained features, each with a one-line description and an estimated complexity (small / medium / large)
-- Features must be independently buildable and deployable
-- Output: feature breakdown → `state.md#feature-breakdown`
+- Clarify the goal, scope boundaries, and non-goals
+- Identify the high-level user needs the epic must satisfy
+- Output: epic spec → `state.md#gate-0`
 
-Write the breakdown to `state.md` under `## Gate 0: Feature Breakdown`.
+Write output to `state.md` under `## Gate 0: Epic Spec`.
 
 Present to the user:
-
 ```
-Epic: [epic description]
+Epic spec ready. Review: pipeline/epic-[slug]/state.md#gate-0
 
-Proposed features:
-1. [feature name] — [one-line description] ([complexity])
-2. [feature name] — [one-line description] ([complexity])
-...
-
-Does this breakdown look right? Type **yes** to proceed, add/remove features, or rename any item.
+Does this capture what you want? Type **yes** to proceed or describe what to change.
 ```
 
-On reject: Analyst revises and re-presents. Repeat until approved.
+On reject: Analyst revises and re-presents.
 
 ---
 
-## Step 3: Create Feature Runs
+## Step 3: Feature Breakdown (Gate 1)
+
+Activate the **Architect** → skill: `to-tickets`.
+
+**Architect brief:**
+- Read the epic spec from `state.md#gate-0`
+- Decompose the epic into self-contained features, each independently buildable and deployable
+- For each feature, produce: name, one-line description, complexity (small / medium / large), and any blocking dependencies on other features
+- Declare the recommended execution sequence (sequential or parallel where independent)
+- Output: feature breakdown table → `state.md#gate-1`
+
+Write output to `state.md` under `## Gate 1: Feature Breakdown`:
+
+```markdown
+## Gate 1: Feature Breakdown
+
+| # | Feature | Description | Complexity | Depends On |
+|---|---|---|---|---|
+| 1 | [name] | [description] | small | — |
+| 2 | [name] | [description] | medium | 1 |
+
+**Execution sequence:** [sequential | parallel where noted]
+```
+
+Present to the user:
+```
+Feature breakdown ready. Review: pipeline/epic-[slug]/state.md#gate-1
+
+Does this breakdown look right? Type **yes** to proceed, add/remove features, or adjust dependencies.
+```
+
+On reject: Architect revises and re-presents.
+
+---
+
+## Step 4: Create Feature Runs
 
 For each approved feature in the breakdown:
 
@@ -89,9 +118,9 @@ Log the epic plan to `pipeline/epic-[slug]/log.md`.
 
 ---
 
-## Step 4: Execute Features Sequentially
+## Step 5: Execute Features in Architect-Defined Sequence
 
-Work through the feature runs one at a time, in the order approved at Gate 0.
+Work through the feature runs in the order and sequence declared by the Architect in `state.md#gate-1`. Respect blocking dependencies — do not start a feature until all its declared dependencies are `complete`.
 
 For each feature run:
 
@@ -111,13 +140,13 @@ If a feature run fails or is blocked, stop and escalate per proj-protocol escala
 
 ---
 
-## Step 5: Epic Completion
+## Step 6: Epic Completion
 
 When all features are `complete`:
 
 1. Activate the **Release Documenter** with the full epic context:
    - Read all `signoff_package.md` files from each feature run
-   - Compile a combined `pipeline/epic-[slug]/epic-signoff.md` summarising all features, test results, and deploy confirmations
+   - Compile a combined `pipeline/epic-[slug]/epic-signoff.md` summarizing all features, test results, and deploy confirmations
 
 2. Update `pipeline/epic-[slug]/state.md` status to `complete`
 
