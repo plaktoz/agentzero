@@ -56,6 +56,13 @@ Same steps as docker, replacing `docker` with `podman` in every command.
 `docker compose` becomes `podman compose`.
 Step 4 conditional applies identically: only run `podman run` when `build_tool` is NOT `compose`.
 
+On macOS, verify the Podman machine is running before any podman command:
+```
+podman machine list --format '{{.Running}}' | grep -q true \
+  || { echo "Podman machine not running. Run: podman machine start"; exit 1; }
+```
+Do not start the machine automatically — report it to the user if it is not running.
+
 ## Step 4: Write to pipeline/[run-name]/state.md
 
 The run name is passed by the Orchestrator. Append to the `## Deployment` section of `pipeline/[run-name]/state.md`:

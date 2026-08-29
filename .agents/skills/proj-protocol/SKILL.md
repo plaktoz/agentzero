@@ -288,28 +288,49 @@ All agent-executed code (test runs, builds) runs in an isolated environment. Age
 
 | `isolation` value | Behavior |
 |---|---|
-| `auto` | Use Docker if available; fall back to process isolation |
-| `containerized` | Always use Docker/Podman — fail if unavailable |
+| `auto` | Auto-detect container runtime; fall back to process isolation |
+| `containerized` | Always use a container runtime — fail if none available |
 | `process` | Run in a subprocess with `PORT` overrides from `test_env.port_pool` |
 | `sequential` | Run tests sequentially in the current process (CI/CD with external sandboxing) |
 
-**Docker isolation** (`runtime: docker` or `podman`):
+**Container runtime selection** (read `test_env.runtime`):
 
-Before running any test suite or build:
-1. Check availability: `docker info > /dev/null 2>&1`
-2. If available, wrap the command:
-   ```
-   docker run --rm \
-     -v $(pwd):/workspace:ro \
-     -w /workspace \
-     [image] \
-     [test-or-build command]
-   ```
-   - `--rm` — container is removed after run (ephemeral)
-   - `:ro` mount for test runs; omit read-only for builds that produce output files
-   - `[image]` — derive from project `Dockerfile`; fallback to `node:20-alpine`, `python:3.12-slim`, `golang:1.23-alpine` based on project language
-3. If Docker unavailable and `isolation: auto` → fall back to process isolation; log a warning to `log.md` with status `escalated`
-4. If Docker unavailable and `isolation: containerized` → **STOP**: report "Docker required but not available" to the user
+| `runtime` value | How to check | CLI prefix |
+|---|---|---|
+| `docker` | `docker info > /dev/null 2>&1` | `docker` |
+| `podman` | `podman info > /dev/null 2>&1` | `podman` |
+| `none` | skip container isolation | — |
+
+When `isolation: auto` and `runtime` is not set or is `docker`, try Docker first, then Podman:
+```
+docker info > /dev/null 2>&1 && RUNTIME=docker \
+  || podman info > /dev/null 2>&1 && RUNTIME=podman \
+  || RUNTIME=none
+```
+When `runtime` is set explicitly, use only that runtime — do not fall back to another.
+
+**Container run command** (substitute `$RUNTIME` with `docker` or `podman`):
+
+```
+$RUNTIME run --rm \
+  -v $(pwd):/workspace:ro \
+  -w /workspace \
+  [image] \
+  [test-or-build command]
+```
+- `--rm` — container removed after run (ephemeral)
+- `:ro` mount for test runs; omit for builds that write output files
+- `[image]` — use project `Dockerfile` if present; otherwise fall back by language:
+  `node:20-alpine` / `python:3.12-slim` / `golang:1.23-alpine`
+
+**Podman-specific notes:**
+- Podman is daemonless — no `sudo` or daemon startup required
+- On macOS, Podman requires a Podman machine: `podman machine start` (user must have done this; do not start it automatically)
+- `podman compose` is the equivalent of `docker compose` — substitute identically in deploy steps
+
+**When container runtime is unavailable:**
+- `isolation: auto` → fall back to process isolation; log a warning to `log.md` with status `escalated`
+- `isolation: containerized` → **STOP**: report "No container runtime available (tried docker, podman)" to the user and wait
 
 **Process isolation** (fallback or `isolation: process`):
 - Assign a port from `test_env.port_pool.app` — do not use a port already in use
@@ -321,12 +342,13 @@ Before running any test suite or build:
 - Never connect to a production or staging database from within a test run
 - Never write files outside the project directory or `/tmp/` from within a test or build
 
-**The Coder role** must document the image or run command used in `state.md#test-env` after first use in a run:
+**The Coder role** must document the runtime and image used in `state.md#test-env` after first use in a run:
 ```markdown
 ## Test Environment
-**Isolation:** docker
-**Image:** node:20-alpine
-**Run command:** docker run --rm -v $(pwd):/workspace:ro -w /workspace node:20-alpine npm test
+**Isolation:** containerized
+**Runtime:** podman
+**Image:** python:3.12-slim
+**Run command:** podman run --rm -v $(pwd):/workspace:ro -w /workspace python:3.12-slim pytest
 ```
 
 ---

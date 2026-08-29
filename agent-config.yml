@@ -44,7 +44,13 @@ data_governance:
 
 test_env:
   isolation: auto                      # auto | containerized | process | sequential
-  runtime: docker                      # docker | podman | none (used when isolation: containerized or auto)
+  runtime: docker                      # docker | podman | none
+                                       #   docker  — use Docker Engine (default; most CI environments)
+                                       #   podman  — use Podman (rootless, daemonless; good for local dev on Linux/Mac)
+                                       #   none    — process isolation only (no container runtime available)
+                                       # auto-detection: when isolation: auto, the skill checks `docker info` then
+                                       # `podman info` and uses whichever responds first. Set runtime explicitly
+                                       # to force one or the other.
   port_pool:
     app: [3001, 3099]                  # Next free port assigned per parallel feature
     db: [5433, 5499]                   # Used for process isolation only
