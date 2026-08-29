@@ -5,7 +5,11 @@ from pathlib import Path
 
 REQUIRED_PROVIDER_KEYS = ['api_key', 'api_url']
 REQUIRED_PIPELINE = ['parallel_execution', 'max_tester_retries']
-REQUIRED_ROLES = ['orchestrator', 'analyst', 'designer', 'architect', 'coder', 'tester', 'deployer']
+REQUIRED_ROLES = [
+    'orchestrator', 'analyst', 'designer', 'architect', 'coder',
+    'tester_generator_a', 'tester_generator_b', 'tester_arbiter', 'tester_consolidator',
+    'release_documenter', 'deployer',
+]
 REQUIRED_ROLE_KEYS = ['model', 'tools', 'skills']
 REQUIRED_DEPLOY = ['container_runtime', 'registry', 'target_environment', 'build_tool', 'pre_deploy_checks']
 
