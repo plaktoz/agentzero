@@ -39,7 +39,9 @@ Severity: **high** if a spec requirement has no test coverage; **medium** if tes
 
 ### 3. Code Quality
 
-Run the project's linter and test suite as defined in `agent-config.yml` under `deploy.pre_deploy_checks`.
+Read `test_env.isolation` from `agent-config.yml`. Run the linter and test suite inside an isolated environment per the **Sandboxed Execution Rules** in `proj-protocol`. Never run tests directly on the host when `isolation` is not `sequential`.
+
+Read the linter and test commands from `agent-config.yml` under `deploy.pre_deploy_checks`.
 
 - All tests must pass
 - No linter errors (warnings are allowed)

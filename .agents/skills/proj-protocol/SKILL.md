@@ -4,6 +4,18 @@ This is the shared protocol reference for all `proj-*` skills. Read this once pe
 
 ---
 
+## Pre-flight Checks
+
+Run these **before activating the first role** on every pipeline run.
+
+**1. Data governance scan** — invoke the `data-governance` skill against all source files the pipeline will touch. Do not proceed until it returns clean or the user approves findings.
+
+**2. Cost check** — read `cost_governance.max_cost_per_run` from `agent-config.yml`. Confirm the run budget is non-zero before starting. See Cost Governance section for per-role checks.
+
+**3. Eval gate** — if `agent-config.yml` was modified since the last pipeline run (check via `git diff HEAD -- agent-config.yml`), invoke the `eval` skill before starting. Do not start a pipeline run with an unvalidated config change.
+
+---
+
 ## Pipeline Folder Structure
 
 Each pipeline run owns its own folder:
@@ -24,6 +36,35 @@ Run name conventions:
 - Refactor: `refactor-[slug]` (e.g. `refactor-api-layer`)
 
 Slugify by lowercasing the task description, replacing spaces with hyphens, keeping only alphanumeric and hyphens, truncating to 40 chars.
+
+---
+
+## Git/PR Workflow Rules
+
+Agents never commit directly to the main branch. Every code change goes through a feature branch and PR.
+
+**Coder (on first activation for a run):**
+1. Create a feature branch from the current default branch:
+   `git checkout -b [run-name]` (e.g. `git checkout -b feat-dark-mode`)
+2. All commits go to this branch — never to `main` or `master`
+3. Commit message format: `[run-name]: [what changed]`
+4. After writing code: `git push -u origin [run-name]`
+5. Open a PR: `gh pr create --title "[run-name]" --body "Pipeline run: pipeline/[run-name]/state.md"`
+6. Write the PR URL to `state.md` under `## PR`:
+   ```markdown
+   ## PR
+   **URL:** [pr url]
+   **Branch:** [run-name]
+   **Status:** open
+   ```
+
+**On Coder retry:** commit each attempt as a new commit on the same branch — do not amend or force-push.
+
+**Release Documenter:** include the PR URL and diff summary in `signoff_package.md`. The PR diff is the reviewable artifact.
+
+**Deployer:** after Gate 3 approval, merge the PR via `gh pr merge [pr-url] --squash --delete-branch`, then run deploy steps. Do not merge before Gate 3.
+
+**Rollback:** if a deployment must be reverted, use `git revert` — never `git reset`. Write the revert commit to a new `fix-revert-[run-name]` run.
 
 ---
 
@@ -239,6 +280,57 @@ Skip retrieval if `knowledge_base/lessons/distilled/` is empty.
 
 ---
 
+## Sandboxed Execution Rules
+
+All agent-executed code (test runs, builds) runs in an isolated environment. Agents never run tests or builds directly against the host machine or any production-adjacent infrastructure.
+
+**How isolation mode is determined** (read `test_env.isolation` from `agent-config.yml`):
+
+| `isolation` value | Behavior |
+|---|---|
+| `auto` | Use Docker if available; fall back to process isolation |
+| `containerized` | Always use Docker/Podman — fail if unavailable |
+| `process` | Run in a subprocess with `PORT` overrides from `test_env.port_pool` |
+| `sequential` | Run tests sequentially in the current process (CI/CD with external sandboxing) |
+
+**Docker isolation** (`runtime: docker` or `podman`):
+
+Before running any test suite or build:
+1. Check availability: `docker info > /dev/null 2>&1`
+2. If available, wrap the command:
+   ```
+   docker run --rm \
+     -v $(pwd):/workspace:ro \
+     -w /workspace \
+     [image] \
+     [test-or-build command]
+   ```
+   - `--rm` — container is removed after run (ephemeral)
+   - `:ro` mount for test runs; omit read-only for builds that produce output files
+   - `[image]` — derive from project `Dockerfile`; fallback to `node:20-alpine`, `python:3.12-slim`, `golang:1.23-alpine` based on project language
+3. If Docker unavailable and `isolation: auto` → fall back to process isolation; log a warning to `log.md` with status `escalated`
+4. If Docker unavailable and `isolation: containerized` → **STOP**: report "Docker required but not available" to the user
+
+**Process isolation** (fallback or `isolation: process`):
+- Assign a port from `test_env.port_pool.app` — do not use a port already in use
+- Set `TEST_PORT=[assigned port]` in the subprocess environment
+- Ensure test DB URL points to a local/ephemeral instance, never a shared or staging DB
+
+**Absolute constraints:**
+- Never run `npm test`, `pytest`, `go test`, or any build command directly on the host without isolation when `isolation` is not `sequential`
+- Never connect to a production or staging database from within a test run
+- Never write files outside the project directory or `/tmp/` from within a test or build
+
+**The Coder role** must document the image or run command used in `state.md#test-env` after first use in a run:
+```markdown
+## Test Environment
+**Isolation:** docker
+**Image:** node:20-alpine
+**Run command:** docker run --rm -v $(pwd):/workspace:ro -w /workspace node:20-alpine npm test
+```
+
+---
+
 ## Skill Selection Guide
 
 | Classification | Analyst | Architect | Coder | Tester Ensemble | Quality Gate |
@@ -248,3 +340,11 @@ Skip retrieval if `knowledge_base/lessons/distilled/` is empty.
 | Refactor | `to-spec` | `codebase-design` | `implement` | `code-review` | `quality` |
 | UI / design | `to-spec` | `to-tickets` | `implement` | `tdd` + `code-review` | `quality` |
 | Research needed | `research` + `to-spec` | `domain-modeling` + `to-tickets` | `implement` | `tdd` | `quality` |
+
+**Orchestrator-only skills (not per-classification):**
+
+| Skill | When |
+|---|---|
+| `data-governance` | Pre-flight: before any role reads source files |
+| `eval` | Pre-flight: after any model or skill change in `agent-config.yml` |
+| `lessons` | Post-failure: after any escalation or retry-limit hit |

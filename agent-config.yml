@@ -1,7 +1,10 @@
 # agent-config.yml
 # Central configuration for the autonomous multi-agent pipeline.
-# Edit this file to change models, skills, and runtime behaviour.
+# Edit this file to change models, skills, and runtime behavior.
 # Run `python scripts/validate_config.py` after editing.
+# Run `/eval` after any model or skill change before using in production.
+
+config_version: 1                    # increment on every model or skill change; triggers eval gate
 
 # --- Providers ---
 # Add any provider here. Each role picks one via its `provider:` field.
@@ -33,6 +36,12 @@ cost_governance:
   max_cost_per_run: 5.00               # USD — orchestrator halts and escalates if exceeded
   currency: USD
 
+data_governance:
+  secrets_scan: true                   # scan source files for secrets before sending to LLM APIs
+  pii_scan: true                       # scan for PII patterns; non-blocking unless bulk PII
+  require_local_model: false           # set true to force local/self-hosted model for all roles
+  local_model: ~                       # e.g. ollama/llama3 — used when require_local_model: true
+
 test_env:
   isolation: auto                      # auto | containerized | process | sequential
   runtime: docker                      # docker | podman | none (used when isolation: containerized or auto)
@@ -50,6 +59,8 @@ roles:
     skills:
       - ask-matt                # Routes orchestrator to the right skill per situation
       - lessons                 # Lessons pipeline — triggered on failures/escalations; injects KB at run start
+      - data-governance         # Pre-flight secrets/PII scanner before any role reads source files
+      - eval                    # Prompt/config versioning gate — run after any model or skill change
 
   analyst:
     provider: anthropic
