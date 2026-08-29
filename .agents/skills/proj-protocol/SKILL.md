@@ -40,26 +40,78 @@ Always read `state.md` before activating any role. Always pass the relevant sect
 
 ## Logging Protocol
 
-After every agent action, append one row to `pipeline/[run-name]/log.md` (the log lives inside the run folder alongside `state.md`):
+After every agent action, append one row to `pipeline/[run-name]/log.md`. This is the structured observability record — the cost governance check, lessons pipeline, and debugging all read from it.
 
+**Log format:**
 ```
-| YYYY-MM-DD HH:MM | [Role] | [action taken] | [artifact or section] | [complete | failed | escalated] |
+| Timestamp | Role | Model | Provider | Handoff From | Handoff To | Action | Artifact | Input Tokens | Output Tokens | Cost (USD) | Status |
 ```
 
-Example:
+**Field rules:**
+- `Timestamp` — `YYYY-MM-DD HH:MM`
+- `Role` — exact role name from `agent-config.yml`
+- `Model` — from `agent-config.yml roles.[role].model`
+- `Provider` — from `agent-config.yml roles.[role].provider`
+- `Handoff From` — role that completed immediately before this one (`—` for Orchestrator at run start)
+- `Handoff To` — role that will be activated next (`—` if pending gate or run end)
+- `Action` — what the role did
+- `Artifact` — `state.md#section` or file path written
+- `Input Tokens` — reported by the API response if available; otherwise use the model estimate from the Cost Reference table below
+- `Output Tokens` — reported by the API response if available; otherwise use the model estimate
+- `Cost (USD)` — `(input_tokens / 1_000_000 × input_price) + (output_tokens / 1_000_000 × output_price)` — use Cost Reference table for prices
+- `Status` — `complete | failed | escalated | skipped`
+
+**Example:**
 ```
-| 2026-08-16 09:12 | Orchestrator | Created execution plan | pipeline/feat-dark-mode/state.md#gate-0 | complete |
-| 2026-08-16 09:15 | Analyst | Wrote spec via to-spec | pipeline/feat-dark-mode/state.md#gate-1 | complete |
-| 2026-08-16 09:45 | Tester Ensemble | Ran tests (retry 2/3) | pipeline/feat-dark-mode/state.md#test-results | failed |
+| 2026-08-16 09:12 | Orchestrator | claude-opus-4-8 | anthropic | — | analyst | Created execution plan | pipeline/feat-dark-mode/state.md#gate-0 | 1200 | 340 | 0.03 | complete |
+| 2026-08-16 09:15 | Analyst | claude-sonnet-5 | anthropic | orchestrator | architect | Wrote spec via to-spec | pipeline/feat-dark-mode/state.md#gate-1 | 4800 | 1200 | 0.03 | complete |
+| 2026-08-16 09:45 | Tester Ensemble | claude-haiku-4-5 | anthropic | coder | orchestrator | Ran tests (retry 2/3) | pipeline/feat-dark-mode/state.md#test-results | 3200 | 800 | 0.004 | failed |
 ```
 
 Create `log.md` with a header row when the run folder is first created:
 ```markdown
 # Pipeline Log: [run-name]
 
-| Timestamp | Role | Action | Artifact | Status |
-|---|---|---|---|---|
+| Timestamp | Role | Model | Provider | Handoff From | Handoff To | Action | Artifact | Input Tokens | Output Tokens | Cost (USD) | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|
 ```
+
+---
+
+## Cost Reference Table
+
+Use these prices when API-reported token counts are unavailable. Values are per 1M tokens.
+
+| Model | Input ($/MTok) | Output ($/MTok) |
+|---|---|---|
+| claude-opus-4-8 | 15.00 | 75.00 |
+| claude-sonnet-5 | 3.00 | 15.00 |
+| claude-haiku-4-5 | 0.80 | 4.00 |
+| gpt-4o-mini | 0.15 | 0.60 |
+| gpt-5.4 | 2.00 | 10.00 |
+
+Update this table whenever models or pricing change in `agent-config.yml`.
+
+---
+
+## Cost Governance
+
+Read `cost_governance.max_cost_per_run` from `agent-config.yml` at the start of every pipeline run.
+
+**Before activating any role**, the Orchestrator must:
+
+1. Sum the `Cost (USD)` column in `pipeline/[run-name]/log.md` to get `accumulated_cost`
+2. Estimate the cost of the role about to be activated:
+   - Use the model's output price from the Cost Reference table
+   - Conservative estimate: 2000 input tokens + 1000 output tokens per activation
+   - `estimated_cost = (2000 / 1_000_000 × input_price) + (1000 / 1_000_000 × output_price)`
+3. If `accumulated_cost + estimated_cost > max_cost_per_run`:
+   - **HALT** — do not activate the role
+   - Invoke the `lessons` skill (log the cost-cap escalation as a failure event)
+   - Report to the user: "Cost cap reached ($[accumulated_cost] of $[max_cost_per_run] used). Next role: [role] (~$[estimated_cost]). Approve to continue or adjust the cap in agent-config.yml."
+   - Wait for explicit approval before proceeding
+
+**Parallel fan-out:** when activating multiple roles simultaneously (e.g. tester_generator_a + tester_generator_b), sum all their estimated costs before checking the cap.
 
 ---
 

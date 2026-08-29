@@ -73,9 +73,17 @@ Also update the top-level `**Status:**` field in `state.md` to `complete`.
 
 ## Step 5: Write to pipeline/[run-name]/log.md
 
-Append one row:
+Append one row using the full observability format from proj-protocol:
 ```
-| [timestamp] | Deployer | Deployed [container_runtime] to [target_environment] | pipeline/[run-name]/state.md#deployment | complete |
+| [timestamp] | Deployer | [model] | [provider] | release_documenter | — | Deployed [container_runtime] to [target_environment] | pipeline/[run-name]/state.md#deployment | [input_tokens] | [output_tokens] | [cost] | complete |
+```
+
+Also append a cost summary to `state.md` under `## Run Cost`:
+```markdown
+## Run Cost
+
+**Total cost:** $[sum of Cost (USD) column in log.md]
+**Cap:** $[cost_governance.max_cost_per_run from agent-config.yml]
 ```
 
 ## On Any Error
