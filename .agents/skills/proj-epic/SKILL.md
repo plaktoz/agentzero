@@ -120,21 +120,28 @@ Log the epic plan to `pipeline/epic-[slug]/log.md`.
 
 ## Step 5: Execute Features in Architect-Defined Sequence
 
-Work through the feature runs in the order and sequence declared by the Architect in `state.md#gate-1`. Respect blocking dependencies — do not start a feature until all its declared dependencies are `complete`.
+**Sequencing and dependency rules (Orchestrator's responsibility):**
 
-For each feature run:
+Read `state.md#gate-1`. The Architect's breakdown table declares the execution order and the `Depends On` column for each feature.
 
-1. Announce: "Starting feature [n/total]: **[feature name]** (`feat-[slug]`)"
-2. Update the feature's status to `in_progress` in the epic tracking table
-3. Execute the full `proj-new-feature` pipeline for this feature:
-   - Gate 1: spec approval
-   - Gate 2: design approval (if UI/UX)
-   - Gate 3: test sign-off
-   - Release Documenter → signoff_package.md
-   - Deployer
-4. On completion, update the feature's status to `complete` in the epic tracking table
-5. Log the completion to `pipeline/epic-[slug]/log.md`
-6. Announce: "Feature [n/total] complete. [remaining] remaining."
+Before starting any feature run:
+1. Build a dependency graph from the `Depends On` column
+2. A feature is **ready** when all features it depends on are `complete`
+3. A feature is **blocked** when any of its dependencies are `in_progress` or `pending`
+4. If `pipeline.parallel_execution: true` in `agent-config.yml`, start all ready (unblocked) features simultaneously; otherwise run one at a time in order
+5. Re-evaluate readiness after each feature completes — unblock any features whose last dependency just closed
+
+**For each ready feature run, the Orchestrator:**
+
+1. Announces: "Starting feature [n/total]: **[feature name]** (`feat-[slug]`)"
+2. Updates the feature's status to `in_progress` in the epic tracking table
+3. Invokes `/proj-new-feature` as a sub-skill, passing the existing run folder:
+   - The pre-created `pipeline/feat-[slug]/state.md` is the run context — do not create a new one
+   - Execute all `proj-new-feature` steps from Step 2 onward: Gate 0 plan → Analyst → [Designer] → Architect → Tester Ensemble → Coder → Tester Ensemble → Gate 3 → Release Documenter → Deployer
+   - All gates within the feature run require the same human approval as a standalone `/proj-new-feature`
+4. On completion, updates the feature's status to `complete` in the epic tracking table
+5. Logs the completion to `pipeline/epic-[slug]/log.md`
+6. Announces: "Feature [n/total] complete. [remaining] remaining." then re-evaluates which features are now unblocked
 
 If a feature run fails or is blocked, stop and escalate per proj-protocol escalation rules before proceeding to the next feature.
 
