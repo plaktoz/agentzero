@@ -94,6 +94,7 @@ This configures the `deploy` section of `agent-config.yml` for your project (con
 | Command | When to use |
 |---|---|
 | `/proj-start` | First-time project setup |
+| `/proj-epic [description]` | Plan and execute a multi-feature epic |
 | `/proj-new-feature [description]` | Add a feature or implement a change request |
 | `/proj-fix-bug [description]` | Fix a bug |
 | `/proj-refactor [description]` | Refactor existing code |
