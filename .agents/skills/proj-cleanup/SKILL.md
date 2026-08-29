@@ -19,27 +19,31 @@ Wait for the user's choice.
 
 ## Option 1: Remove Completed Run
 
-List all subdirectories in `pipeline/` where `state.md` contains `**Status:** complete`.
+List all subdirectories in `pipeline/` where `state.md` contains `**Status:** complete`. Group epics above their child feature runs (identified by the `**Epic:**` field in each feature run's `state.md`).
 
 Show the list and ask: "Which completed run would you like to remove?"
 
 On confirmation:
-1. Delete `pipeline/[run-name]/` (including `state.md`, `log.md`, and `design-preview.html` if present)
-2. Report: "Removed pipeline/[run-name]/"
+- **Epic run:** delete `pipeline/epic-[slug]/` and all child feature run folders listed in its `## Feature Runs` table. Report each deletion.
+- **Standalone run:** delete `pipeline/[run-name]/` (including `state.md`, `log.md`, `design-preview.html`, and `signoff_package.md` if present).
+
+Report: "Removed [run-name] (and [n] child feature runs)" or "Removed [run-name]".
 
 ---
 
 ## Option 2: Abandon a Stale Run
 
-List all subdirectories in `pipeline/` where `state.md` contains `**Status:** in_progress`.
+List all subdirectories in `pipeline/` where `state.md` contains `**Status:** in_progress` or `**Status:** pending`. Group epics above their child feature runs.
 
-Show the list and ask: "Which in-progress run do you want to abandon?"
+Show the list and ask: "Which run do you want to abandon?"
 
-Warn: "This will permanently delete `pipeline/[run-name]/`. Any uncommitted work in this run will be lost. Type **yes** to confirm."
+Warn: "This will permanently delete `pipeline/[run-name]/`[and all its child feature runs if epic]. Any uncommitted work will be lost. Type **yes** to confirm."
 
 On confirmation:
-1. Delete `pipeline/[run-name]/`
-2. Report: "Abandoned pipeline/[run-name]/"
+- **Epic run:** delete `pipeline/epic-[slug]/` and all child feature run folders.
+- **Standalone run:** delete `pipeline/[run-name]/`.
+
+Report: "Abandoned [run-name]."
 
 ---
 
