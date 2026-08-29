@@ -109,6 +109,18 @@ Roles have no persistent memory between activations. Always give the full contex
 
 ---
 
+## Quality Gate Rules
+
+The quality gate runs autonomously after Tester Ensemble Phase 2, before Gate 3. It is run by `tester_arbiter` using the `quality` skill. The Orchestrator never skips it.
+
+1. **Autonomous** — tester_arbiter runs all checks without asking the user.
+2. **On PASS** — write verdict to `state.md#quality-gate` and proceed to Gate 3.
+3. **On FAIL** — write blocking findings to `state.md#quality-gate`, send report to Coder, increment the retry counter (shared with the TDD loop counter).
+4. **Retry limit** — quality gate failures count against `pipeline.max_tester_retries`. When the limit is reached, escalate to the user.
+5. **Bug-first rule** — for bug fixes, the quality gate verifies that a failing test was committed before the fix. If not, this is a blocking finding.
+
+---
+
 ## TDD Loop Rules
 
 1. **Tester Ensemble Phase 1 runs BEFORE Coder.** Tests are written from the spec, not from the code.
@@ -158,10 +170,10 @@ Always include: what happened, what was tried, what the user needs to decide.
 
 ## Skill Selection Guide
 
-| Classification | Analyst | Architect | Coder | Tester Ensemble |
-|---|---|---|---|---|
-| New feature | `to-spec` | `to-tickets` + `codebase-design` | `implement` | `tdd` + `code-review` |
-| Bug fix | `to-spec` | *(skip)* | `diagnosing-bugs` | `tdd` |
-| Refactor | `to-spec` | `codebase-design` | `implement` | `code-review` |
-| UI / design | `to-spec` | `to-tickets` | `implement` | `tdd` + `code-review` |
-| Research needed | `research` + `to-spec` | `domain-modeling` + `to-tickets` | `implement` | `tdd` |
+| Classification | Analyst | Architect | Coder | Tester Ensemble | Quality Gate |
+|---|---|---|---|---|---|
+| New feature | `to-spec` | `to-tickets` + `codebase-design` | `implement` | `tdd` + `code-review` | `quality` |
+| Bug fix | `to-spec` | *(skip)* | `diagnosing-bugs` | `tdd` | `quality` |
+| Refactor | `to-spec` | `codebase-design` | `implement` | `code-review` | `quality` |
+| UI / design | `to-spec` | `to-tickets` | `implement` | `tdd` + `code-review` | `quality` |
+| Research needed | `research` + `to-spec` | `domain-modeling` + `to-tickets` | `implement` | `tdd` | `quality` |

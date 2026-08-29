@@ -67,11 +67,15 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
    6c. tester_arbiter → resolves disagreements; escalates critical failures to human
    Output: test results → state.md#test-results
    Max retries: [pipeline.max_tester_retries]
+7. Quality Gate → skill: quality (tester_arbiter, autonomous)
+   Reads: state.md#tests + state.md#test-results + state.md#code-artifacts + git diff
+   Output: pass/fail verdict → state.md#quality-gate
+   On fail: findings sent back to Coder (increments retry counter); on pass: proceed
    [GATE 3: human approval required before deploying]
-7. Release Documenter → skill: proj-deploy
+8. Release Documenter → skill: proj-deploy
    Reads: state.md in full
    Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
-8. Deployer → skill: proj-deploy
+9. Deployer → skill: proj-deploy
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval before proceeding.

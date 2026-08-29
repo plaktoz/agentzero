@@ -119,8 +119,10 @@ roles:
     model: claude-sonnet-5      # Stronger model for judgment on disagreements
     tools:
       - read_files
+      - terminal
     skills:
       - code-review             # Resolves low/medium disagreements; escalates critical to human
+      - quality                 # Autonomous post-code quality gate; emits pass/fail verdict
 
   tester_consolidator:
     provider: anthropic

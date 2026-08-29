@@ -50,6 +50,8 @@ Identify the run type from the prefix (`epic-`, `feat-`, `fix-`, `refactor-`) an
 - Architect complete → task breakdown exists, ready for Tester Ensemble Phase 1
 - Tester Ensemble Phase 1 complete → tests exist, ready for Coder
 - Coder complete → code artifacts listed, ready for Tester Ensemble Phase 2
+- Tester Ensemble Phase 2 complete → test results exist, ready for Quality Gate
+- Quality Gate passed → verdict in state.md#quality-gate, ready for Gate 3
 - Gate 3 approved → ready for Release Documenter
 - Release Documenter complete → signoff_package.md exists, ready for Deployer
 

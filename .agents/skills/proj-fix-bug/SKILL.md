@@ -60,11 +60,15 @@ Write the execution plan to `state.md` under `## Gate 0: Execution Plan`:
    4c. tester_arbiter → resolves disagreements
    Output: test results → state.md#test-results
    Max retries: [pipeline.max_tester_retries]
+5. Quality Gate → skill: quality (tester_arbiter, autonomous)
+   Reads: state.md#tests + state.md#test-results + state.md#code-artifacts + git diff
+   Output: pass/fail verdict → state.md#quality-gate
+   On fail: findings sent back to Coder (increments retry counter); on pass: proceed
    [GATE 3: human approval required before deploying]
-5. Release Documenter → skill: proj-deploy
+6. Release Documenter → skill: proj-deploy
    Reads: state.md in full
    Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
-6. Deployer → skill: proj-deploy
+7. Deployer → skill: proj-deploy
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval.
