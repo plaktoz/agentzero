@@ -39,6 +39,114 @@ Slugify by lowercasing the task description, replacing spaces with hyphens, keep
 
 ---
 
+## Worktree Rules
+
+Read `pipeline.worktree_isolation` from `agent-config.yml` before activating any Coder.
+
+### Why worktrees
+
+Each parallel feature needs its own working directory. Without worktrees, two Coder agents running simultaneously share the same file tree — one agent's uncommitted writes are visible to the other, tests bleed across, and `git status` is ambiguous. Worktrees give each feature a fully isolated checkout of the repository on its own branch.
+
+**Key distinction:**
+- Pipeline state (`pipeline/[run-name]/state.md`, `log.md`) always lives in the **main checkout** — the Orchestrator writes there
+- Source code changes live in `.worktrees/[run-name]/` — the Coder reads and writes there only
+
+### Creating a worktree
+
+When `worktree_isolation: true`, the Orchestrator creates the worktree **before** activating the Coder:
+
+```bash
+git worktree add .worktrees/[run-name] -b [run-name]
+```
+
+- `.worktrees/[run-name]/` — isolated checkout directory, branched from current `HEAD`
+- `-b [run-name]` — creates the feature branch at the same time
+- The worktree is a full working copy of the repo — the Coder can run tests, build, and commit from inside it
+
+Record the worktree path in `state.md` under `## Worktree`:
+```markdown
+## Worktree
+**Path:** .worktrees/[run-name]
+**Branch:** [run-name]
+**Created:** [timestamp]
+**Status:** active
+```
+
+### Coder activation brief (worktree mode)
+
+Add one field to the standard role activation brief:
+```
+**Working directory:** .worktrees/[run-name]
+```
+
+The Coder reads all source files from `.worktrees/[run-name]/`, writes all changes there, commits there, and runs tests from there. It never touches the main checkout's source files.
+
+All sandboxed test runs (docker/podman) are invoked with `$(pwd)` set to the worktree path:
+```bash
+cd .worktrees/[run-name] && docker run --rm -v $(pwd):/workspace:ro ...
+```
+
+### Push and PR from a worktree
+
+From inside the worktree directory:
+```bash
+cd .worktrees/[run-name]
+git push -u origin [run-name]
+gh pr create --title "[run-name]" --body "Pipeline run: pipeline/[run-name]/state.md"
+```
+
+The Coder writes the PR URL back to `pipeline/[run-name]/state.md#pr` in the **main checkout** (not the worktree — the pipeline state file is always in the main checkout).
+
+### Tearing down a worktree
+
+After a PR is merged (Deployer step), remove the worktree:
+```bash
+git worktree remove .worktrees/[run-name]
+```
+
+If the worktree has uncommitted changes (should not happen — Coder must commit before PR), use `--force` and log a warning to `log.md`.
+
+Update `state.md#worktree` status to `removed`.
+
+### Wave sequencing and base branch
+
+Worktrees in the same wave must branch from `main` **after** the previous wave's PRs are merged — not from each other. The Orchestrator:
+
+1. Waits until all previous-wave PRs are merged to `main`
+2. Runs `git pull origin main` in the main checkout
+3. Creates each new wave's worktrees from the updated `HEAD`
+
+This ensures every wave starts from a consistent, merged base.
+
+### Conflict detection
+
+If two worktrees in the same wave touch the same file, the second PR merge will fail with a conflict. The Orchestrator detects this by checking `gh pr merge` exit code.
+
+On conflict:
+1. **STOP** — do not force-merge or resolve automatically
+2. Report to the user:
+   ```
+   ⚠ Merge conflict detected merging [run-name-B] into main.
+   Conflicting file(s): [list from git merge output]
+   Already merged: [run-name-A]
+
+   Options:
+   a) Rebase [run-name-B] onto updated main and resolve conflicts manually
+   b) Activate Architect to redesign the seam so both features own separate files
+   c) Merge sequentially — merge B after resolving conflict
+   ```
+3. Invoke `lessons` skill — file-level conflicts between parallel features are a design signal
+4. Wait for user choice
+
+### Fallback: worktree_isolation: false
+
+When `worktree_isolation: false`, the pipeline falls back to plain branch behavior:
+- `git checkout -b [run-name]` in the main checkout
+- Coder's `Working directory` field is omitted from the brief
+- All other rules (PR, merge, rollback) are unchanged
+
+---
+
 ## Git/PR Workflow Rules
 
 Agents never commit directly to the main branch. Every code change goes through a feature branch and PR.

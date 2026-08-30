@@ -94,6 +94,35 @@ If accumulated cost is within one role's estimated cost of the cap, warn:
 
 ---
 
+## Step 2b: Restore Worktree State
+
+If `pipeline.worktree_isolation: true`, check the worktree status from `state.md#worktree`.
+
+```bash
+git worktree list --porcelain
+```
+
+**Worktree active (status: active) and present in `git worktree list`:**
+The Coder can resume directly — worktree exists and is intact. No action needed.
+
+**Worktree active (status: active) but NOT in `git worktree list`:**
+The session ended and the worktree was lost (machine restart, etc.). Re-create it from the existing branch:
+```bash
+git fetch origin [run-name]
+git worktree add .worktrees/[run-name] [run-name]
+```
+Log a note to `log.md`: "Worktree re-created from existing branch on resume."
+
+**Worktree status: removed** (PR already merged):
+The Coder phase is complete. Next step is beyond Coder — no worktree needed.
+
+**If `worktree_isolation: false`:**
+Skip this step. Confirm the branch exists: `git branch --list [run-name]`. If missing, create it: `git checkout -b [run-name]`.
+
+Include worktree status in the resume announcement.
+
+---
+
 ## Step 3: Announce and Continue
 
 Announce:

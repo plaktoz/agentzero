@@ -6,6 +6,31 @@ Read `proj-protocol` for all shared rules: blackboard protocol, logging format, 
 
 ---
 
+## Step 0: Worktree Setup (if worktree_isolation: true)
+
+Read `pipeline.worktree_isolation` from `agent-config.yml`.
+
+If `true` and no worktree exists yet for this run:
+```bash
+git pull origin main
+git worktree add .worktrees/[run-name] -b [run-name]
+```
+
+Record in `state.md` under `## Worktree`:
+```markdown
+## Worktree
+**Path:** .worktrees/[run-name]
+**Branch:** [run-name]
+**Created:** [timestamp]
+**Status:** active
+```
+
+If a worktree already exists for this run (resume case), skip creation — the existing worktree is re-used.
+
+If `worktree_isolation: false`, skip this step entirely. The Coder will use `git checkout -b [run-name]` in the main checkout instead.
+
+---
+
 ## Step 1: Accept Task and Create Run
 
 Ask the user for the feature description if not provided as an argument.
@@ -58,6 +83,7 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
    Output: unit tests + integration tests → state.md#tests
 5. Coder → skill: implement
    Reads: spec + tests from state.md
+   Working directory: .worktrees/[run-name]  (if worktree_isolation: true; else main checkout)
    Output: source files → state.md#code-artifacts
    Parallel execution: [per pipeline.parallel_execution in agent-config.yml]
 6. Tester Ensemble Phase 2 → skill: tdd + code-review

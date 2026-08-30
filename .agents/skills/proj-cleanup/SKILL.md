@@ -43,7 +43,14 @@ Show the list with cost summaries and ask: "Which completed run would you like t
 
 On confirmation:
 
-**Check the PR/branch first:**
+**Check the worktree first (if worktree_isolation: true):**
+1. Read `state.md#worktree` for the worktree path and status
+2. If status is `active`: the worktree should have been removed after merge, but may linger
+   - Check: `git worktree list | grep [run-name]`
+   - If found: `git worktree remove .worktrees/[run-name]` (use `--force` only if confirmed by user)
+3. If status is `removed` or `state.md#worktree` is absent: skip
+
+**Check the PR/branch:**
 1. Read `state.md#pr` for the PR URL and branch name
 2. If a branch exists: check whether it has been merged — `git branch --merged main | grep [branch-name]`
    - If merged: delete the remote branch: `git push origin --delete [branch-name]`
@@ -75,6 +82,7 @@ Warn:
 ```
 ⚠ Abandoning [run-name]:
   - pipeline/[run-name]/ will be permanently deleted
+  - Worktree .worktrees/[run-name] will be force-removed (if active)
   - PR [url] will be closed (not merged)
   - Branch [branch-name] will be deleted
   - $[cost] spent on this run will not be recovered
@@ -85,14 +93,19 @@ Type yes to confirm.
 
 On confirmation:
 
-1. **Close the PR** (if open): `gh pr close [pr-url] --comment "Abandoned by proj-cleanup"`
-2. **Delete the branch**: `git push origin --delete [branch-name]`
+1. **Remove the worktree** (if `worktree_isolation: true` and worktree is active):
+   ```bash
+   git worktree remove --force .worktrees/[run-name]
+   ```
+   Skip if `state.md#worktree` is absent or status is `removed`.
+2. **Close the PR** (if open): `gh pr close [pr-url] --comment "Abandoned by proj-cleanup"`
+3. **Delete the branch**: `git push origin --delete [branch-name]`
    - If branch does not exist remotely: skip silently
-3. **Delete the folder:**
+5. **Delete the folder:**
    - Epic run: delete `pipeline/epic-[slug]/` and all child feature run folders
    - Standalone run: delete `pipeline/[run-name]/`
-4. **Invoke the `lessons` skill** — an abandoned run is a failure event. The Orchestrator runs Observe → Extract → Validate → Distill against the run's `log.md` and `state.md` before deleting them (read first, then delete).
-5. **Log to `pipeline-log.md`**:
+6. **Invoke the `lessons` skill** — an abandoned run is a failure event. The Orchestrator runs Observe → Extract → Validate → Distill against the run's `log.md` and `state.md` before deleting them (read first, then delete).
+7. **Log to `pipeline-log.md`**:
    ```
    | [timestamp] | cleanup | abandoned [run-name] | cost: $[cost] | branch: deleted | pr: closed |
    ```
@@ -101,9 +114,20 @@ Report: "Abandoned [run-name] (PR closed, branch deleted, lessons extracted)."
 
 ---
 
-## Option 3: Clean Up Orphaned Branches
+## Option 3: Clean Up Orphaned Branches and Worktrees
 
-An orphaned branch is a git branch that matches the pipeline naming pattern (`feat-*`, `fix-*`, `refactor-*`, `epic-*`) but has no corresponding folder in `pipeline/`.
+**Orphaned worktrees** — worktrees in `.worktrees/` with no active pipeline run:
+
+```bash
+git worktree list --porcelain | grep worktree | sed 's/worktree //'
+```
+
+For each `.worktrees/[name]` found, check whether `pipeline/[name]/state.md` exists and has `**Status:** in_progress`. If not found or status is `complete`/`pending`, it is orphaned.
+
+Show orphaned worktrees and ask: "Remove all orphaned worktrees?"
+On confirmation: `git worktree remove .worktrees/[name]` for each (use `--force` if uncommitted changes and user confirms).
+
+**Orphaned branches** — git branches matching the pipeline naming pattern (`feat-*`, `fix-*`, `refactor-*`, `epic-*`) but with no corresponding folder in `pipeline/`.
 
 1. List branches: `git branch -r | grep -E 'feat-|fix-|refactor-|epic-'`
 2. For each branch, check whether `pipeline/[branch-name]/` exists

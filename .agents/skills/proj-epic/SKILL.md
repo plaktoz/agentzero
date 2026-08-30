@@ -114,11 +114,14 @@ For each approved feature in the breakdown:
 ```markdown
 ## Feature Runs
 
-| # | Feature | Run | Status |
-|---|---|---|---|
-| 1 | [feature name] | feat-[slug] | pending |
-| 2 | [feature name] | feat-[slug] | pending |
+| # | Feature | Run | Status | Worktree | PR |
+|---|---|---|---|---|---|
+| 1 | [feature name] | feat-[slug] | pending | — | — |
+| 2 | [feature name] | feat-[slug] | pending | — | — |
 ```
+
+Update `Worktree` column to `.worktrees/feat-[slug]` when created, `removed` when torn down.
+Update `PR` column to the PR URL once the Coder opens it.
 
 Log the epic plan to `pipeline/epic-[slug]/log.md`.
 
@@ -141,13 +144,49 @@ Before starting any feature run:
 
 1. Announces: "Starting feature [n/total]: **[feature name]** (`feat-[slug]`)"
 2. Updates the feature's status to `in_progress` in the epic tracking table
-3. Invokes `/proj-new-feature` as a sub-skill, passing the existing run folder:
+
+3. **If `pipeline.worktree_isolation: true`** — create the worktree before activating the pipeline:
+   ```bash
+   git pull origin main          # ensure base is current
+   git worktree add .worktrees/feat-[slug] -b feat-[slug]
+   ```
+   Record in `pipeline/feat-[slug]/state.md`:
+   ```markdown
+   ## Worktree
+   **Path:** .worktrees/feat-[slug]
+   **Branch:** feat-[slug]
+   **Created:** [timestamp]
+   **Status:** active
+   ```
+   For a wave of parallel features, create **all worktrees first** from the same `HEAD`, then activate the pipelines simultaneously — this guarantees they all start from an identical base:
+   ```bash
+   git pull origin main
+   git worktree add .worktrees/feat-feature-a -b feat-feature-a
+   git worktree add .worktrees/feat-feature-b -b feat-feature-b
+   git worktree add .worktrees/feat-feature-c -b feat-feature-c
+   # then activate all three pipelines in parallel
+   ```
+
+4. Invokes `/proj-new-feature` as a sub-skill, passing the existing run folder:
    - The pre-created `pipeline/feat-[slug]/state.md` is the run context — do not create a new one
    - Execute all `proj-new-feature` steps from Step 2 onward: Gate 0 plan → Analyst → [Designer] → Architect → Tester Ensemble → Coder → Tester Ensemble → Gate 3 → Release Documenter → Deployer
    - All gates within the feature run require the same human approval as a standalone `/proj-new-feature`
-4. On completion, updates the feature's status to `complete` in the epic tracking table
-5. Logs the completion to `pipeline/epic-[slug]/log.md`
-6. Announces: "Feature [n/total] complete. [remaining] remaining." then re-evaluates which features are now unblocked
+
+5. **Wave merge sequence** — when multiple features in the same wave complete:
+   - Merge PRs one at a time, in order (lowest feature number first)
+   - After each merge, run `git pull origin main` in the main checkout before merging the next
+   - If a merge conflict is detected, follow the Conflict Detection rules in `proj-protocol` (Worktree Rules section)
+   - Do NOT merge all PRs simultaneously — sequential merge prevents compounding conflicts
+
+6. **Worktree teardown** — after each PR merges successfully:
+   ```bash
+   git worktree remove .worktrees/feat-[slug]
+   ```
+   Update `pipeline/feat-[slug]/state.md#worktree` status to `removed`.
+
+7. On completion, updates the feature's status to `complete` in the epic tracking table
+8. Logs the completion to `pipeline/epic-[slug]/log.md`
+9. Announces: "Feature [n/total] complete. [remaining] remaining." then re-evaluates which features are now unblocked
 
 If a feature run fails or is blocked, stop and escalate per proj-protocol escalation rules before proceeding to the next feature.
 

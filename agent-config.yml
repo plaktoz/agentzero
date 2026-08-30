@@ -27,6 +27,11 @@ default_provider: anthropic            # Used when a role omits `provider:`
 
 pipeline:
   parallel_execution: true             # Run independent tasks concurrently
+  worktree_isolation: true             # Create git worktrees for Coder activations so parallel
+                                       # features never share a working directory. Each feature's
+                                       # Coder writes code to .worktrees/[run-name]/ exclusively.
+                                       # Pipeline state (state.md, log.md) always stays in the
+                                       # main checkout. Set false to use plain branches instead.
 
   # --- Retry / revision caps ---
   # Each cap is the max number of revision rounds before the Orchestrator halts
