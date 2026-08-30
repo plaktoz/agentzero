@@ -161,20 +161,23 @@ Read `cost_governance.max_cost_per_run` from `agent-config.yml` at the start of 
 At each gate, **STOP** and present the following. Do not proceed until you receive explicit approval.
 
 ### Gate 0 — Execution Plan
-Present: The full execution plan from `state.md#gate-0`
+Present: The full execution plan from `state.md#gate-0`, including the **Run Estimates** block (see Gate 0 Estimates section below).
 Ask: "Does this plan look right? Type **yes** to proceed or tell me what to change."
 On reject: revise the plan and re-present.
 
 ### Gate 1 — Spec Approval
 Present: The spec and acceptance criteria from `state.md#gate-1`
+Show: Current spec revision count vs cap (e.g. "Revision 1 of max 2")
 Ask: "Does this spec capture what you want? Type **yes** to proceed or tell me what to change."
-On reject: Analyst revises and re-presents.
+On reject: Analyst revises and re-presents. Increment the spec revision counter.
+**Cap:** read `pipeline.max_spec_revisions` from `agent-config.yml`. When reached: STOP, invoke `lessons` skill, report to user — "Spec revision limit reached ([n]/[max]). Proceeding with current spec or provide final direction."
 
 ### Gate 2 — Design Approval (only when Designer is activated)
 Present: "Open `pipeline/[run-name]/design-preview.html` in your browser to review the mockup."
-Show: The design notes from `state.md#gate-2`
+Show: The design notes from `state.md#gate-2` + current revision count (e.g. "Revision 1 of max 2")
 Ask: "Does the design look right? Type **yes** to proceed or describe what to change."
-On reject: Designer revises and re-presents.
+On reject: Designer revises and re-presents. Increment the design revision counter.
+**Cap:** read `pipeline.max_design_revisions` from `agent-config.yml`. When reached: STOP, report to user — "Design revision limit reached ([n]/[max]). Proceeding with current design or provide final direction."
 
 ### Gate 3 — Test Sign-Off
 Present: Test results from `state.md#test-results`
@@ -229,6 +232,135 @@ The quality gate runs autonomously after Tester Ensemble Phase 2, before Gate 3.
 
 ---
 
+## Review Cycle Rules
+
+Code review runs after Coder completes (`code-review` skill, invoked by `tester_arbiter`). If the review produces blocking findings, Coder must fix and re-submit — this is one review cycle.
+
+1. **Counter:** maintain `review_cycles` in `state.md#review-status`, starting at 0. Increment on each Coder re-submission.
+2. **Retry limit:** read `pipeline.max_review_cycles` from `agent-config.yml`. When reached: STOP, invoke `lessons` skill, report to user:
+   ```
+   Code review cycle limit reached ([n]/[max]).
+   Unresolved findings:
+   - [list blocking findings]
+   Options: a) Accept current state and proceed  b) Provide specific guidance for Coder  c) Abort run
+   ```
+3. **Non-blocking findings** (warnings, style): always proceed — do not count against the cycle limit.
+4. **Review status in state.md:**
+   ```markdown
+   ## Review Status
+   **Cycle:** [n] of [max]
+   **Last verdict:** [pass | fail]
+   **Open findings:** [count]
+   ```
+
+---
+
+## Gate 0 Estimates
+
+Every Gate 0 execution plan must include a **Run Estimates** block. Compute it as follows.
+
+**Complexity:** classify the task as `small`, `medium`, or `large` based on scope:
+- `small` — single endpoint, single component, isolated change
+- `medium` — multiple components, cross-layer change, 3–8 acceptance criteria
+- `large` — new subsystem, schema change, 9+ acceptance criteria or unknown domain
+
+**Duration estimate:**
+1. Read `pipeline.eta_minutes` from `agent-config.yml`
+2. Sum ETA for each activated role at the classified complexity tier
+3. Add retry buffer: `(max_tester_retries + max_review_cycles) × coder_eta × retry_time_factor`
+4. If Designer activated: add designer ETA
+5. Report as a range: `[base_sum] – [base_sum + retry_buffer]` minutes
+
+**Cost estimate:**
+1. For each activated role, compute: `(2000 input + 1000 output tokens) × model price` (from Cost Reference table)
+2. Low estimate: no retries — sum all role activations once
+3. High estimate: assume `max_tester_retries` Coder+Tester activations — multiply those roles' costs
+4. Report as: `~$[low] – $[high]`
+
+**Token estimate:**
+1. Low: sum of `(2000 + 1000) × number_of_roles` tokens
+2. High: low × (1 + max_tester_retries × 0.5)
+3. Report as: `~[low]K – [high]K tokens`
+
+**Retry budgets:** list each cap from `agent-config.yml`:
+
+```markdown
+## Run Estimates
+
+**Complexity:** [small | medium | large]
+**Duration:** ~[low]–[high] min  (no retries: ~[base] min)
+**Cost:** ~$[low]–$[high]  (cap: $[max_cost_per_run])
+**Tokens:** ~[low]K–[high]K
+
+**Retry budgets:**
+- TDD + quality gate: [max_tester_retries] rounds
+- Spec revision: [max_spec_revisions] rounds
+- Design revision: [max_design_revisions] rounds (n/a if Designer not activated)
+- Code review: [max_review_cycles] rounds
+```
+
+Present this block at Gate 0. If any estimate exceeds the cost cap, warn the user before they approve.
+
+---
+
+## Token / Context Exhaustion Rules
+
+The Orchestrator's context window can fill before a run completes. These rules ensure no work is lost and the run can always be resumed.
+
+### Proactive checkpointing
+
+After **each role completes**, before activating the next:
+1. Verify `state.md` is fully written — the role's output section exists and is non-empty
+2. Verify `log.md` has a row for the completed role
+3. Write a checkpoint line to `state.md` at the bottom:
+   ```
+   **Last checkpoint:** [role just completed] at [timestamp]
+   ```
+This means the run can always resume from the last completed role, not from scratch.
+
+### When context pressure is detected
+
+Signs of context pressure (long run, many retries, epic with multiple features):
+- After Gate 1 approval on a large run
+- After each feature completes in an epic
+- When the retry counter is > 1
+
+At these points, proactively tell the user:
+```
+Context checkpoint: [role] complete. State saved to pipeline/[run-name]/state.md.
+
+If this session runs out of context before the run finishes, type:
+  /proj-resume pipeline/[run-name]
+to pick up from here.
+```
+
+### When context is exhausted mid-role
+
+If a role runs out of context window mid-task (the model stops responding or the session dies):
+- The run is not lost — `state.md` has everything up to the last checkpoint
+- The role's output for the interrupted step will be incomplete or absent
+- The user will need to start a new session and type `/proj-resume pipeline/[run-name]`
+
+`proj-resume` reads `state.md`, finds the last checkpoint, and restarts from the next incomplete step.
+
+### When the API returns a quota or rate-limit error
+
+If a provider returns a 429 (rate limit) or quota exhaustion error:
+1. **STOP** — do not retry automatically (retrying immediately will fail again)
+2. Write the error to `log.md` with status `escalated`
+3. Report to the user:
+   ```
+   ⚠ Provider [provider] returned a rate-limit/quota error for role [role].
+
+   Options:
+   a) Wait and retry — the provider quota resets on a schedule (usually hourly or daily)
+   b) Switch this role to a different provider — edit agent-config.yml roles.[role].provider
+   c) Abort this run
+   ```
+4. Wait for user choice. The run state is fully preserved — resume once the user decides.
+
+---
+
 ## Task Dependency Rules
 
 Read the `## Feature & Task Breakdown` table in `state.md`:
@@ -264,6 +396,54 @@ Stop and report to the user when:
 Always include: what happened, what was tried, what the user needs to decide.
 
 **After every escalation:** invoke the `lessons` skill. The Orchestrator runs the full Observe → Extract → Validate → Distill pipeline against the failed run before handing off to the user.
+
+---
+
+## Human Intervention Guide
+
+Every situation where the pipeline stops and waits for a human, what they see, and what they need to do.
+
+### Planned stops (expected — pipeline is healthy)
+
+| Situation | What the human sees | What to type |
+|---|---|---|
+| **Gate 0** — execution plan ready | Plan, complexity, cost/duration estimate, retry budgets | `yes` to proceed; or describe changes |
+| **Gate 1** — spec ready | Full PRD with all sections; revision count shown | `yes` to proceed; or describe what to change |
+| **Gate 2** — design ready | Path to open `design-preview.html` in browser; design notes | `yes` to proceed; or describe what to change |
+| **Gate 3** — tests passed | Test result summary (X/Y passed), quality gate verdict | `yes` to deploy; or `no` to hold |
+
+### Limit hits (run is paused — human decides direction)
+
+| Situation | What the human sees | Options to type |
+|---|---|---|
+| **Spec revision cap** hit | "Spec revision limit reached (2/2). Unresolved issues: [list]" | `accept` to proceed with current spec; or provide final direction in plain text |
+| **Design revision cap** hit | "Design revision limit reached (2/2). Last version: design-preview.html" | `accept` to proceed with current design; or provide final direction |
+| **TDD retry cap** hit | "Tester retry limit reached (3/3). Failures: [list]" | Paste specific fix guidance for Coder; or `abort` |
+| **Review cycle cap** hit | "Code review cycle limit reached (2/2). Open findings: [list]" | `accept` current state; or provide specific guidance; or `abort` |
+
+### Budget stops (run is paused — action required before continuing)
+
+| Situation | What the human sees | Options to type |
+|---|---|---|
+| **Cost cap reached** | "Cost cap reached ($X.XX of $Y.YY used). Next role: [role] (~$Z). Approve to continue or adjust cap." | `approve` to continue; or `abort`; or update `cost_governance.max_cost_per_run` in `agent-config.yml` then type `approve` |
+| **Provider rate limit / quota** | "Provider [X] returned rate-limit error for role [role]." | `retry` once quota resets; or `switch` — edit `agent-config.yml roles.[role].provider` then type `resume`; or `abort` |
+
+### Blocking findings (action required before run can continue)
+
+| Situation | What the human sees | Options to type |
+|---|---|---|
+| **Secrets found** in source files | "Pre-flight scan found secrets in [file:line]: [pattern]" | `redact` — replace value with placeholder; `false-positive` — proceed anyway; `abort` |
+| **Container runtime unavailable** (`isolation: containerized`) | "No container runtime available (tried docker, podman)" | Install Docker/Podman and type `retry`; or update `test_env.isolation: process` in `agent-config.yml` and type `resume` |
+| **Podman machine not running** (macOS) | "Podman machine not running. Run: podman machine start" | `! podman machine start` then type `retry` |
+| **No deploy command found** | "No build command detected (checked Makefile, package.json, pyproject.toml)" | Type the build/start command to use |
+
+### Context / session management
+
+| Situation | What the human sees | What to do |
+|---|---|---|
+| **Context checkpoint** (proactive) | "Context checkpoint: [role] complete. If context runs out, type: /proj-resume pipeline/[run-name]" | Nothing required — informational only |
+| **Session ended mid-run** | New session, no active pipeline | Type `/proj-resume pipeline/[run-name]` |
+| **Guardrail candidates pending** | "There are [n] guardrail candidates awaiting your review: knowledge_base/guardrails_candidates.md" | Open the file, review candidates, move approved ones to `guardrails.yaml` |
 
 ---
 

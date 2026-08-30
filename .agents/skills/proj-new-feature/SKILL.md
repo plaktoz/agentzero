@@ -35,18 +35,18 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
 
 ```
 **Classification:** feature
+**Complexity:** [small | medium | large]
 
 **Roles Activated:** Analyst, [Designer — if task has UI/UX], Architect, Tester Ensemble, Coder, Release Documenter, Deployer
-
 **Designer Activated:** [yes | no]
 
 **Execution Sequence:**
 1. Analyst → skill: to-spec (or research + to-spec if domain is unfamiliar)
    Output: spec + acceptance criteria → state.md#gate-1
-   [GATE 1: human approval required]
+   [GATE 1: human approval required — revision cap: pipeline.max_spec_revisions]
 2. Designer → skill: prototype    ← only if Designer: yes
    Output: design-preview.html + notes → state.md#gate-2
-   [GATE 2: human approval required]
+   [GATE 2: human approval required — revision cap: pipeline.max_design_revisions]
 3. Architect → skill: to-tickets + codebase-design
    Reads: Gate 1 spec (+ Gate 2 design if present)
    Output: feature/task breakdown table → state.md#feature-task-breakdown
@@ -66,7 +66,7 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
    6b. tester_consolidator → merges results → state.md#test-results
    6c. tester_arbiter → resolves disagreements; escalates critical failures to human
    Output: test results → state.md#test-results
-   Max retries: [pipeline.max_tester_retries]
+   Retry cap: pipeline.max_tester_retries | Review cap: pipeline.max_review_cycles
 7. Quality Gate → skill: quality (tester_arbiter, autonomous)
    Reads: state.md#tests + state.md#test-results + state.md#code-artifacts + git diff
    Output: pass/fail verdict → state.md#quality-gate
@@ -76,6 +76,21 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
    Reads: state.md in full
    Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
 9. Deployer → skill: proj-deploy
+
+## Run Estimates
+
+**Complexity:** [small | medium | large]
+**Duration:** ~[low]–[high] min  (no retries: ~[base] min)
+**Cost:** ~$[low]–$[high]  (cap: $[max_cost_per_run])
+**Tokens:** ~[low]K–[high]K tokens
+
+**Retry budgets:**
+- TDD + quality gate: [max_tester_retries] rounds
+- Spec revision: [max_spec_revisions] rounds
+- Design revision: [max_design_revisions] rounds ([n/a if Designer not activated])
+- Code review: [max_review_cycles] rounds
+
+Compute estimates using the Gate 0 Estimates rules in proj-protocol.
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval before proceeding.

@@ -27,7 +27,53 @@ default_provider: anthropic            # Used when a role omits `provider:`
 
 pipeline:
   parallel_execution: true             # Run independent tasks concurrently
-  max_tester_retries: 3                # Tester→Coder loop limit before human escalation
+
+  # --- Retry / revision caps ---
+  # Each cap is the max number of revision rounds before the Orchestrator halts
+  # and escalates to the user. The run does NOT abort — the user decides next steps.
+  max_tester_retries: 3                # Tester→Coder loop (TDD + quality gate combined)
+  max_spec_revisions: 2                # Analyst spec revision rounds after Gate 1 rejection
+  max_design_revisions: 2             # Designer revision rounds after Gate 2 rejection
+  max_review_cycles: 2                # Code-review→Coder fix rounds before human escalation
+
+  # --- ETA estimation weights (minutes, used at Gate 0 plan) ---
+  # These are conservative estimates per role activation at each complexity tier.
+  # Adjust to match observed wall-clock times on your hardware/provider.
+  eta_minutes:
+    analyst:
+      small: 3
+      medium: 5
+      large: 8
+    designer:
+      small: 5
+      medium: 8
+      large: 12
+    architect:
+      small: 4
+      medium: 7
+      large: 10
+    tester_ensemble:           # both phases combined
+      small: 4
+      medium: 6
+      large: 9
+    coder:
+      small: 5
+      medium: 12
+      large: 20
+    quality_gate:
+      small: 2
+      medium: 3
+      large: 4
+    release_documenter:
+      small: 2
+      medium: 3
+      large: 4
+    deployer:
+      small: 1
+      medium: 2
+      large: 3
+  retry_time_factor: 0.6               # each retry adds this fraction of the role's base ETA
+
   parallel_failure_policy:
     cr_fix: proceed                    # Independent branches continue on partial failure
     full_release: halt                 # All branches must succeed before proceeding

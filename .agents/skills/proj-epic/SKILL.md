@@ -68,13 +68,19 @@ Write output to `state.md` under `## Gate 1: Feature Breakdown`:
 ```markdown
 ## Gate 1: Feature Breakdown
 
-| # | Feature | Description | Complexity | Depends On |
-|---|---|---|---|---|
-| 1 | [name] | [description] | small | — |
-| 2 | [name] | [description] | medium | 1 |
+| # | Feature | Description | Complexity | Depends On | Est. Duration | Est. Cost |
+|---|---|---|---|---|---|---|
+| 1 | [name] | [description] | small | — | ~8–15 min | ~$0.05–$0.12 |
+| 2 | [name] | [description] | medium | 1 | ~20–38 min | ~$0.12–$0.28 |
 
 **Execution sequence:** [sequential | parallel where noted]
+
+**Epic totals (sequential path):** ~[sum of all durations] min | ~$[sum of all costs]
+**Epic totals (parallel path):** ~[longest chain duration] min | ~$[sum of all costs]
+**Combined cost cap:** $[max_cost_per_run × feature_count] (each feature run is capped independently)
 ```
+
+Compute per-feature estimates using the Gate 0 Estimates rules in proj-protocol, applying each feature's complexity tier.
 
 Present to the user:
 ```
