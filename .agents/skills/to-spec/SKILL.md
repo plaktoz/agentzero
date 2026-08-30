@@ -18,6 +18,21 @@ Check with the user that these seams match their expectations.
 
 3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 
+Before publishing, verify every item in this checklist is present and non-empty:
+
+**PRD Completeness Checklist**
+- [ ] Business Context — explains the business driver; not left blank
+- [ ] User Personas — at least one named persona defined
+- [ ] Problem Statement — references persona names from the Personas section
+- [ ] Solution — describes what users can do; no implementation detail
+- [ ] Success Metrics — at least one measurable outcome OR instrumentation requirement listed
+- [ ] User Stories — uses persona names; covers happy path, error states, and edge cases
+- [ ] Acceptance Criteria — every criterion is in Given/When/Then format and independently testable
+- [ ] Implementation Decisions — no file paths; no code snippets (except prototype-sourced decision fragments)
+- [ ] Testing Decisions — names which modules will be tested and at which seam
+- [ ] Assumptions & Risks — at least one assumption and one risk listed
+- [ ] Out of Scope — names at least one excluded capability explicitly
+
 <spec-template>
 
 ## Business Context
