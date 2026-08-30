@@ -1,7 +1,10 @@
 # agent-config.yml
 # Central configuration for the autonomous multi-agent pipeline.
-# Edit this file to change models, skills, and runtime behaviour.
+# Edit this file to change models, skills, and runtime behavior.
 # Run `python scripts/validate_config.py` after editing.
+# Run `/eval` after any model or skill change before using in production.
+
+config_version: 1                    # increment on every model or skill change; triggers eval gate
 
 # --- Providers ---
 # Add any provider here. Each role picks one via its `provider:` field.
@@ -9,10 +12,10 @@
 providers:
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}      # export ANTHROPIC_API_KEY=sk-ant-...
-    api_url: https://api.anthropic.com
+    api_url: ${ANTHROPIC_BASE_URL}      # https://api.anthropic.com
   openai:
     api_key: ${OPENAI_API_KEY}         # export OPENAI_API_KEY=sk-...
-    api_url: https://api.openai.com/v1
+    api_url: ${OPENAI_BASE_URL}         # https://api.openai.com/v1
   # google:
   #   api_key: ${GOOGLE_API_KEY}
   #   api_url: https://generativelanguage.googleapis.com/v1beta
@@ -23,8 +26,85 @@ providers:
 default_provider: anthropic            # Used when a role omits `provider:`
 
 pipeline:
-  parallel_execution: true      # Run independent tasks concurrently
-  max_tester_retries: 3         # Tester→Coder loop limit before human escalation
+  parallel_execution: true             # Run independent tasks concurrently
+  worktree_isolation: true             # Create git worktrees for Coder activations so parallel
+                                       # features never share a working directory. Each feature's
+                                       # Coder writes code to .worktrees/[run-name]/ exclusively.
+                                       # Pipeline state (state.md, log.md) always stays in the
+                                       # main checkout. Set false to use plain branches instead.
+
+  # --- Retry / revision caps ---
+  # Each cap is the max number of revision rounds before the Orchestrator halts
+  # and escalates to the user. The run does NOT abort — the user decides next steps.
+  max_tester_retries: 3                # Tester→Coder loop (TDD + quality gate combined)
+  max_spec_revisions: 2                # Analyst spec revision rounds after Gate 1 rejection
+  max_design_revisions: 2             # Designer revision rounds after Gate 2 rejection
+  max_review_cycles: 2                # Code-review→Coder fix rounds before human escalation
+
+  # --- ETA estimation weights (minutes, used at Gate 0 plan) ---
+  # These are conservative estimates per role activation at each complexity tier.
+  # Adjust to match observed wall-clock times on your hardware/provider.
+  eta_minutes:
+    analyst:
+      small: 3
+      medium: 5
+      large: 8
+    designer:
+      small: 5
+      medium: 8
+      large: 12
+    architect:
+      small: 4
+      medium: 7
+      large: 10
+    tester_ensemble:           # both phases combined
+      small: 4
+      medium: 6
+      large: 9
+    coder:
+      small: 5
+      medium: 12
+      large: 20
+    quality_gate:
+      small: 2
+      medium: 3
+      large: 4
+    release_documenter:
+      small: 2
+      medium: 3
+      large: 4
+    deployer:
+      small: 1
+      medium: 2
+      large: 3
+  retry_time_factor: 0.6               # each retry adds this fraction of the role's base ETA
+
+  parallel_failure_policy:
+    cr_fix: proceed                    # Independent branches continue on partial failure
+    full_release: halt                 # All branches must succeed before proceeding
+
+cost_governance:
+  max_cost_per_run: 5.00               # USD — orchestrator halts and escalates if exceeded
+  currency: USD
+
+data_governance:
+  secrets_scan: true                   # scan source files for secrets before sending to LLM APIs
+  pii_scan: true                       # scan for PII patterns; non-blocking unless bulk PII
+  require_local_model: false           # set true to force local/self-hosted model for all roles
+  local_model: ~                       # e.g. ollama/llama3 — used when require_local_model: true
+
+test_env:
+  isolation: auto                      # auto | containerized | process | sequential
+  runtime: docker                      # docker | podman | none
+                                       #   docker  — use Docker Engine (default; most CI environments)
+                                       #   podman  — use Podman (rootless, daemonless; good for local dev on Linux/Mac)
+                                       #   none    — process isolation only (no container runtime available)
+                                       # auto-detection: when isolation: auto, the skill checks `docker info` then
+                                       # `podman info` and uses whichever responds first. Set runtime explicitly
+                                       # to force one or the other.
+  port_pool:
+    app: [3001, 3099]                  # Next free port assigned per parallel feature
+    db: [5433, 5499]                   # Used for process isolation only
 
 roles:
   orchestrator:
@@ -35,6 +115,9 @@ roles:
       - task_planning
     skills:
       - ask-matt                # Routes orchestrator to the right skill per situation
+      - lessons                 # Lessons pipeline — triggered on failures/escalations; injects KB at run start
+      - data-governance         # Pre-flight secrets/PII scanner before any role reads source files
+      - eval                    # Prompt/config versioning gate — run after any model or skill change
 
   analyst:
     provider: anthropic
@@ -79,19 +162,59 @@ roles:
       - implement               # Builds from spec/tickets with TDD at seams
       - diagnosing-bugs         # Disciplined red→minimise→fix→regression loop
 
-  tester:
+  # Tester ensemble: two cross-provider generators + arbiter + consolidator
+  # generator_a and generator_b run independently for perspective diversity
+  # consolidator deduplicates findings; arbiter resolves disagreements
+  tester_generator_a:
     provider: anthropic
-    model: claude-haiku-4-5-20251001
+    model: claude-haiku-4-5
     tools:
       - read_files
       - terminal
     skills:
-      - tdd                     # Red-green-refactor loop, one vertical slice at a time
-      - code-review             # Parallel sub-agent review across coding standards + spec
+      - tdd                     # Generates test cases from spec (structured output)
+
+  tester_generator_b:
+    provider: openai
+    model: gpt-5.4
+    tools:
+      - read_files
+      - terminal
+    skills:
+      - tdd                     # Independent perspective via different provider
+
+  tester_arbiter:
+    provider: anthropic
+    model: claude-sonnet-5      # Stronger model for judgment on disagreements
+    tools:
+      - read_files
+      - terminal
+    skills:
+      - code-review             # Resolves low/medium disagreements; escalates critical to human
+      - quality                 # Autonomous post-code quality gate; emits pass/fail verdict
+
+  tester_consolidator:
+    provider: anthropic
+    model: claude-haiku-4-5
+    tools:
+      - read_files
+      - write_files
+    skills:
+      - tdd                     # Deduplicates findings, ranks by severity, produces test_plan.md
+
+  release_documenter:
+    provider: anthropic
+    model: claude-sonnet-5
+    tools:
+      - read_files
+      - write_files
+    skills:
+      - proj-deploy             # Reads pipeline-state.md, compiles signoff_package.md
+    completeness_check: hard_block    # Pipeline halts if mandatory artifacts are missing
 
   deployer:
     provider: anthropic
-    model: claude-haiku-4-5-20251001
+    model: claude-haiku-4-5
     tools:
       - terminal
       - git

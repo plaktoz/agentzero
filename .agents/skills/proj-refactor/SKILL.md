@@ -36,7 +36,7 @@ Write the execution plan to `state.md` under `## Gate 0: Execution Plan`:
 ```
 **Classification:** refactor
 
-**Roles Activated:** Analyst, Architect, Tester, Coder, Deployer
+**Roles Activated:** Analyst, Architect, Tester Ensemble, Coder, Release Documenter, Deployer
 
 **Designer Activated:** no
 
@@ -47,18 +47,31 @@ Write the execution plan to `state.md` under `## Gate 0: Execution Plan`:
 2. Architect → skill: codebase-design
    Reads: Gate 1 spec
    Output: target architecture + seam definitions → state.md#feature-task-breakdown
-3. Tester Phase 1 → skill: code-review
+3. Tester Ensemble Phase 1 → skill: code-review
    Reads: spec + existing source files
-   Output: regression test suite covering current behaviour → state.md#tests
+   3a. tester_generator_a + tester_generator_b in parallel → each generates regression tests
+   3b. tester_consolidator → deduplicates → state.md#tests
+   3c. tester_arbiter → resolves disagreements
+   Output: regression test suite covering current behavior → state.md#tests
 4. Coder → skill: implement
    Reads: spec + target architecture + regression tests from state.md
    Output: refactored source files → state.md#code-artifacts
-5. Tester Phase 2 → skill: code-review
+5. Tester Ensemble Phase 2 → skill: code-review
    Reads: state.md#tests + all source files
+   5a. tester_generator_a + tester_generator_b in parallel → each runs tests and reports
+   5b. tester_consolidator → merges results → state.md#test-results
+   5c. tester_arbiter → resolves disagreements
    Output: test results — all prior tests must still pass → state.md#test-results
    Max retries: [pipeline.max_tester_retries]
+6. Quality Gate → skill: quality (tester_arbiter, autonomous)
+   Reads: state.md#tests + state.md#test-results + state.md#code-artifacts + git diff
+   Output: pass/fail verdict → state.md#quality-gate
+   On fail: findings sent back to Coder (increments retry counter); on pass: proceed
    [GATE 3: human approval required before deploying]
-6. Deployer → skill: proj-deploy
+7. Release Documenter → skill: proj-deploy
+   Reads: state.md in full
+   Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
+8. Deployer → skill: proj-deploy
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval.

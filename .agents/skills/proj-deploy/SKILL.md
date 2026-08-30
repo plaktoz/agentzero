@@ -56,6 +56,13 @@ Same steps as docker, replacing `docker` with `podman` in every command.
 `docker compose` becomes `podman compose`.
 Step 4 conditional applies identically: only run `podman run` when `build_tool` is NOT `compose`.
 
+On macOS, verify the Podman machine is running before any podman command:
+```
+podman machine list --format '{{.Running}}' | grep -q true \
+  || { echo "Podman machine not running. Run: podman machine start"; exit 1; }
+```
+Do not start the machine automatically — report it to the user if it is not running.
+
 ## Step 4: Write to pipeline/[run-name]/state.md
 
 The run name is passed by the Orchestrator. Append to the `## Deployment` section of `pipeline/[run-name]/state.md`:
@@ -73,9 +80,17 @@ Also update the top-level `**Status:**` field in `state.md` to `complete`.
 
 ## Step 5: Write to pipeline/[run-name]/log.md
 
-Append one row:
+Append one row using the full observability format from proj-protocol:
 ```
-| [timestamp] | Deployer | Deployed [container_runtime] to [target_environment] | pipeline/[run-name]/state.md#deployment | complete |
+| [timestamp] | Deployer | [model] | [provider] | release_documenter | — | Deployed [container_runtime] to [target_environment] | pipeline/[run-name]/state.md#deployment | [input_tokens] | [output_tokens] | [cost] | complete |
+```
+
+Also append a cost summary to `state.md` under `## Run Cost`:
+```markdown
+## Run Cost
+
+**Total cost:** $[sum of Cost (USD) column in log.md]
+**Cap:** $[cost_governance.max_cost_per_run from agent-config.yml]
 ```
 
 ## On Any Error

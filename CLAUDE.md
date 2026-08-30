@@ -9,6 +9,7 @@ Read `agent-config.yml` at the start of every session — it contains all role c
 | Command | When to use |
 |---|---|
 | `/proj-start` | First-time project setup |
+| `/proj-epic` | Plan and execute a multi-feature epic |
 | `/proj-new-feature` | Add a feature or handle a change request |
 | `/proj-fix-bug` | Fix a bug |
 | `/proj-refactor` | Refactor existing code |

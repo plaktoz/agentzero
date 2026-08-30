@@ -13,15 +13,18 @@ import sys
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 CONFIG_PATH = Path(__file__).parent.parent / "agent-config.yml"
 
 # Cheapest probe model per provider (used only if none is configured in roles)
 _PROBE_FALLBACKS = {
-    "anthropic": "claude-haiku-4-5-20251001",
-    "openai":    "gpt-4o-mini",
-    "google":    "gemini-1.5-flash",
-    "mistral":   "mistral-small-latest",
+    "anthropic": "claude-haiku-4-5",
+    "openai":    "gpt-5.6-luna",
+    "google":    "gemini-3.7-flash",
+    "mistral":   "mistral-medium-2505",
 }
 
 
@@ -73,7 +76,7 @@ def _probe_openai_compat(key: str, url: str, model: str) -> tuple[bool, str]:
         r = requests.post(
             f"{url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+            json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 10},
             timeout=15,
         )
         r.raise_for_status()
@@ -122,13 +125,14 @@ def main() -> int:
         print("No providers found in agent-config.yml")
         return 1
 
-    print(f"Probing {len(providers)} provider(s) (max_tokens=1)…\n")
+    print(f"Probing {len(providers)} provider(s)…\n")
     failures = 0
 
     for name, cfg in providers.items():
         raw_key = cfg.get("api_key", "")
-        url     = cfg.get("api_url", "")
+        raw_url = cfg.get("api_url", "")
         key     = _resolve_env(raw_key)
+        url     = _resolve_env(raw_url) or raw_url
         model   = _pick_model(config, name)
 
         if not key:
