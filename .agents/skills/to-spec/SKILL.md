@@ -20,25 +20,66 @@ Check with the user that these seams match their expectations.
 
 <spec-template>
 
+## Business Context
+
+Why this work matters to the business or product. One short paragraph. Include:
+- The strategic goal or business driver behind this feature/change
+- The cost of not doing it (lost revenue, user churn, compliance risk, technical debt, etc.)
+- Any deadline or external forcing function (regulatory date, launch date, partner dependency)
+
+Omit if there is genuinely no business context beyond "developer quality-of-life".
+
+## User Personas
+
+A brief description of each distinct user type affected by this feature. One bullet per persona.
+Format: **[Persona name]** — [one sentence describing who they are and their relevant context]
+
+Example:
+- **Guest shopper** — unauthenticated user browsing the storefront; cannot save a cart between sessions
+- **Returning customer** — authenticated user with order history; expects a personalised experience
+
+Use these persona names consistently in User Stories.
+
 ## Problem Statement
 
-The problem that the user is facing, from the user's perspective.
+The problem that each persona is facing, from their perspective. Reference personas by name.
+If all personas share the same problem, a single paragraph is fine.
 
 ## Solution
 
-The solution to the problem, from the user's perspective.
+The proposed solution, from the user's perspective. No implementation detail — describe what users can do, not how the system does it.
+
+## Success Metrics
+
+How we will know this feature succeeded. List 2–5 measurable outcomes.
+Format: **[Metric]** — [current baseline if known] → [target]
+
+Examples:
+- **Password reset completion rate** — unknown baseline → ≥ 80% of initiated resets completed within 30 min
+- **Support tickets tagged "can't log in"** — 120/month → < 40/month within 60 days of launch
+- **Time to reset** — n/a → p95 < 2 minutes end-to-end
+
+If metrics cannot be defined yet, list the instrumentation that must be in place at launch (so they can be measured later).
 
 ## User Stories
 
 A LONG, numbered list of user stories. Each user story should be in the format of:
 
-1. As an <actor>, I want a <feature>, so that <benefit>
+1. As a <persona>, I want <feature>, so that <benefit>
 
 <user-story-example>
-1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
+1. As a returning customer, I want to reset my password without contacting support, so that I can regain access to my account immediately
 </user-story-example>
 
-This list of user stories should be extremely extensive and cover all aspects of the feature.
+Use persona names from the User Personas section. This list should be extensive and cover the happy path, error states, and edge cases.
+
+## Acceptance Criteria
+
+A numbered list of testable pass/fail conditions that define "done" for this spec. Each criterion must be independently verifiable.
+
+Format: **[n].** Given [context], when [action], then [outcome].
+
+These are the criteria the Tester Ensemble will write tests against. Be specific enough that a developer who has not read the rest of the spec could write a test from the criterion alone.
 
 ## Implementation Decisions
 
@@ -64,9 +105,19 @@ A list of testing decisions that were made. Include:
 - Which modules will be tested
 - Prior art for the tests (i.e. similar types of tests in the codebase)
 
+## Assumptions & Risks
+
+**Assumptions** — things we are treating as true without verification. If any assumption turns out to be wrong, the spec may need revision.
+
+**Risks** — things that could prevent successful delivery or adoption. Include mitigation where known.
+
+Format:
+- **Assumption:** [statement]
+- **Risk:** [what could go wrong] — Mitigation: [how we reduce the probability or impact]
+
 ## Out of Scope
 
-A description of the things that are out of scope for this spec.
+A description of the things that are explicitly out of scope for this spec. Be specific — "social login" not "other auth methods".
 
 ## Further Notes
 
