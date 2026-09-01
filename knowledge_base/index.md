@@ -27,7 +27,12 @@ Entry point for all lessons and guardrail candidates. Every file in this KB must
 
 ## Guardrail Candidates
 
-- [guardrails_candidates.md](guardrails_candidates.md)
+- [guardrails_candidates.md](guardrails_candidates.md) — lessons awaiting human sign-off
+- [guardrails.yaml](guardrails.yaml) — promoted hard rules; read by Orchestrator at session start
+
+## Failure Patterns
+
+- [failure-patterns.md](failure-patterns.md) — aggregate table; one row per distinct pattern
 
 ---
 
