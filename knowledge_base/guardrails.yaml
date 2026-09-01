@@ -1,0 +1,13 @@
+version: 1
+
+# Human-ratified hard rules for the pipeline.
+# Never auto-promoted — each entry requires explicit human sign-off.
+# Candidates stage in knowledge_base/guardrails_candidates.md.
+#
+# Severity:
+#   hard_block — Orchestrator must include this as a hard constraint in every affected role's context brief
+#   soft_warn  — Orchestrator surfaces this as a caution but does not block
+#
+# Role: which role this constrains. Use "all" for pipeline-wide rules.
+
+guardrails: []

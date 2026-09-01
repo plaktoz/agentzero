@@ -117,6 +117,19 @@ Then update `knowledge_base/index.md`:
 - Add a link to the new file under the appropriate tag group
 - If merging into an existing file, update its `Source runs` and `Added` date
 
+Then update `knowledge_base/failure-patterns.md`:
+- Scan for an existing row with the same `Role` and `Failure Type`
+- If found: increment the `Frequency` count in-place (this is the only in-place edit permitted in this file)
+- If not found: append a new row using this format:
+
+```
+| FP[n+1] | [role] | [failure_type] | 1 | [root cause — one line] | [mitigation — one line] | [distilled/file.md] |
+```
+
+Also update `steering/roles/[role].md`:
+- Find the `## Known failure modes` section
+- If the pattern is not already listed, append a bullet: `- [failure_type]: [root cause — one line] — see [distilled/file.md]`
+
 ---
 
 ## Retrieval at Pipeline Start
@@ -138,14 +151,13 @@ No vector DB required — tag filtering on the bounded distilled set is sufficie
 
 ## Guardrail Promotion
 
-`knowledge_base/guardrails_candidates.md` accumulates lessons that may warrant promotion to hard rules in `guardrails.yaml`.
+`knowledge_base/guardrails_candidates.md` accumulates lessons that may warrant promotion to hard rules in `knowledge_base/guardrails.yaml`.
 
-Format:
+### Adding a candidate
+
+Append to `knowledge_base/guardrails_candidates.md` under `## Pending ratification`:
+
 ```markdown
-# Guardrail Candidates
-
-## Pending ratification
-
 ### [slug]
 **Proposed rule:** [one-line constraint]
 **Source lessons:** [distilled/file.md]
@@ -153,6 +165,23 @@ Format:
 **Suggested guardrail:**
   role: [role]
   constraint: [what must / must not happen]
+  severity: hard_block | soft_warn
 ```
 
-Promotion to `guardrails.yaml` requires **human sign-off** — the Orchestrator never promotes autonomously. Review on-demand; no forced cadence.
+### Promoting to guardrails.yaml (human action only)
+
+When the user approves a candidate, append to the `guardrails:` list in `knowledge_base/guardrails.yaml`:
+
+```yaml
+- id: G[n+1]
+  severity: hard_block        # hard_block | soft_warn
+  role: [role]                # role name from agent-config.yml; "all" for pipeline-wide
+  rule: "[one-line constraint copied from candidate]"
+  ratified_by: [user]
+  ratified_on: [YYYY-MM-DD]
+  source_lesson: knowledge_base/lessons/distilled/[file].md
+```
+
+Then remove the entry from `guardrails_candidates.md`.
+
+The Orchestrator reads `guardrails.yaml` at session start and injects `hard_block` rules into every affected role's context brief. **Never auto-promote — promotion requires explicit human sign-off.**
