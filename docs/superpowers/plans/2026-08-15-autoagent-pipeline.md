@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Matt Pocock's skills are installed globally at `~/.claude/skills/` — reference them by name, do not copy them
-- Model IDs must use exact strings: `claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5-20251001`
+- Model IDs must use exact strings: `claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5`
 - pipeline-state.md is append-only — never overwrite prior sections
 - All configurable values live in `agent-config.yml` — no hardcoded values in CLAUDE.md or skills
 - Human gates block forward progress — the pipeline pauses until explicit approval is received
@@ -220,7 +220,7 @@ roles:
       - diagnosing-bugs         # Disciplined red→minimise→fix→regression loop
 
   tester:
-    model: claude-haiku-4-5-20251001
+    model: claude-haiku-4-5
     tools:
       - read_files
       - terminal
@@ -229,7 +229,7 @@ roles:
       - code-review             # Parallel sub-agent review across coding standards + spec
 
   deployer:
-    model: claude-haiku-4-5-20251001
+    model: claude-haiku-4-5
     tools:
       - terminal
       - git

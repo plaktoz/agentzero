@@ -57,7 +57,7 @@ Extend the existing connectivity check to make a minimal test call to each confi
 Provider     Model                    Status
 anthropic    claude-opus-4-8          ✓ reachable
 anthropic    claude-sonnet-5          ✓ reachable
-anthropic    claude-haiku-4-5-20251001 ✓ reachable
+anthropic    claude-haiku-4-5 ✓ reachable
 openai       gpt-5.4                  ✓ reachable
 ```
 
