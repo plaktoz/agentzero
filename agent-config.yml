@@ -212,6 +212,15 @@ roles:
       - proj-deploy             # Reads pipeline-state.md, compiles signoff_package.md
     completeness_check: hard_block    # Pipeline halts if mandatory artifacts are missing
 
+  build_verifier:
+    provider: anthropic
+    model: claude-haiku-4-5
+    tools:
+      - terminal
+      - read_files
+    skills:
+      - proj-deploy             # Runs install + smoke checks; writes build_check.md
+
   deployer:
     provider: anthropic
     model: claude-haiku-4-5
@@ -227,5 +236,7 @@ deploy:
   target_environment: local     # local | staging | production
   build_tool: none              # dockerfile | compose | none
   pre_deploy_checks:
+    - install                   # pip/npm/etc install from manifest; fail if deps missing
+    - build                     # compile / bundle if build_tool != none; smoke-test CLI entry points
     - tests
     - lint

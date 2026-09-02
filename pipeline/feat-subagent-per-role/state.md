@@ -2,7 +2,7 @@
 
 **Task:** Subagent-Per-Role Execution — wire up each pipeline role to spawn as a true subagent via the Agent tool, with model sourced from agent-config.yml, log.md model_used column, and check_providers.py model verification.
 **Started:** 2026-09-01
-**Status:** in_progress
+**Status:** complete
 
 ---
 
@@ -291,6 +291,15 @@ Task breakdown written to state.md
 |---|---|---|---|---|
 | T1 | steering/tech.md | Added log.md schema subsection (7 columns) | T1 | closed |
 | T4 | CLAUDE.md | Replaced Role Activation Protocol with hybrid Path A/B spawn logic | T4 | closed |
+
+---
+
+## Build Check
+**Verdict:** PASS
+**Manifest:** scripts/requirements.txt (all deps declared and installed)
+**Smoke tests:** 2/2 passed (call_provider.py, check_providers.py)
+**Blocking findings:** 0
+**Non-blocking:** requirements.txt location (scripts/ vs root), check_providers.py no-args crash (pre-existing)
 
 ---
 

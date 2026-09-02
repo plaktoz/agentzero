@@ -16,3 +16,4 @@
 | 2026-09-02 | tester_generator_a | claude-sonnet-5 | anthropic | coder | tester_consolidator | Phase 2: ran 34 tests, all passed | tests/test_subagent_per_role.py | 2400 | 800 | 0.020 | complete |
 | 2026-09-02 | tester_arbiter | claude-sonnet-5 | anthropic | tester_consolidator | orchestrator | Quality gate: PASS — 34/34, 0 blocking findings, 2 non-blocking | pipeline/feat-subagent-per-role/state.md#quality-gate | 4800 | 1600 | 0.040 | complete |
 | 2026-09-02 | release_documenter | claude-sonnet-5 | anthropic | orchestrator | deployer | Compiled signoff package | pipeline/feat-subagent-per-role/signoff_package.md | 3200 | 1100 | 0.026 | complete |
+| 2026-09-02 | deployer | claude-haiku-4-5 | anthropic | release_documenter | — | Committed, pushed, opened PR #6 | https://github.com/plaktoz/agentzero/pull/6 | 800 | 200 | 0.001 | complete |
