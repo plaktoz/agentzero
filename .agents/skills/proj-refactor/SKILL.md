@@ -72,6 +72,9 @@ Write the execution plan to `state.md` under `## Gate 0: Execution Plan`:
    Reads: state.md in full
    Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
 8. Deployer → skill: proj-deploy
+9. Delivery Manager (autonomous — no gate)
+   Reads: pipeline/[run-name]/log.md + state.md#gate-0 Run Estimates
+   Output: pipeline/[run-name]/retro.md
 ```
 
 Present Gate 0 per the gate protocol. Wait for approval.
@@ -93,3 +96,17 @@ On TDD failure: increment retry counter, send failure report back to Coder. If r
 ## Step 4: Gate 3 — Await Deploy Approval
 
 Present test results. Wait for "yes" before invoking `/proj-deploy`.
+
+---
+
+## Step 5: Retro Phase (Autonomous — after Deployer)
+
+After the Deployer completes, activate the `delivery_manager` role. No gate, no user approval required.
+
+Follow the Retro Phase activation rules in `proj-protocol`. Delivery Manager writes `pipeline/[run-name]/retro.md`.
+
+After `retro.md` is written, surface to the user:
+```
+Measure complete: pipeline/[run-name]/retro.md
+Top finding: [one-sentence summary of the #1 priority action from the file]
+```

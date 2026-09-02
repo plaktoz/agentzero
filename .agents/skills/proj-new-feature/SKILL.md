@@ -102,6 +102,9 @@ Reason through the task and produce an execution plan. Write it to `state.md` un
    Reads: state.md in full
    Output: signoff_package.md → pipeline/[run-name]/signoff_package.md
 9. Deployer → skill: proj-deploy
+10. Delivery Manager (autonomous — no gate)
+    Reads: pipeline/[run-name]/log.md + state.md#gate-0 Run Estimates
+    Output: pipeline/[run-name]/retro.md
 
 ## Run Estimates
 
@@ -227,3 +230,17 @@ This step runs autonomously — do not ask the user for approval.
 ## Step 5: Gate 3 — Await Deploy Approval
 
 Present test results **and build check verdict**. Wait for "yes" before invoking `/proj-deploy`.
+
+---
+
+## Step 6: Retro Phase (Autonomous — after Deployer)
+
+After the Deployer completes, activate the `delivery_manager` role. No gate, no user approval required.
+
+Follow the Retro Phase activation rules in `proj-protocol`. Delivery Manager writes `pipeline/[run-name]/retro.md`.
+
+After `retro.md` is written, surface to the user:
+```
+Measure complete: pipeline/[run-name]/retro.md
+Top finding: [one-sentence summary of the #1 priority action from the file]
+```

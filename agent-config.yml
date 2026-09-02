@@ -77,6 +77,10 @@ pipeline:
       small: 1
       medium: 2
       large: 3
+    delivery_manager:
+      small: 1
+      medium: 2
+      large: 3
   retry_time_factor: 0.6               # each retry adds this fraction of the role's base ETA
 
   parallel_failure_policy:
@@ -229,6 +233,15 @@ roles:
       - git
     skills:
       - proj-deploy             # Custom skill: reads deploy section below
+
+  delivery_manager:
+    provider: anthropic
+    model: claude-haiku-4-5
+    tools:
+      - read_files
+      - write_files
+    skills:
+      - proj-deploy             # Reads log.md + state.md; compiles retro.md post-deploy
 
 deploy:
   container_runtime: none       # docker | podman | none

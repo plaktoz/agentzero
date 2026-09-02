@@ -24,9 +24,17 @@ Each pipeline run owns its own folder:
 pipeline/
   feat-dark-mode/
     state.md
+    log.md
+    signoff_package.md
+    build_check.md
+    retro.md            ← written by Delivery Manager after Deployer completes
     design-preview.html   ← only if Designer was activated
   fix-auth-bug/
     state.md
+    log.md
+    signoff_package.md
+    build_check.md
+    retro.md
 pipeline-log.md           ← cross-run audit trail, project root
 ```
 
@@ -363,6 +371,54 @@ Code review runs after Coder completes (`code-review` skill, invoked by `tester_
 
 ---
 
+## Retro Phase
+
+The retro phase is the **final autonomous step** in every pipeline run. It runs after the Deployer completes, requires no user approval, and always produces `pipeline/[run-name]/retro.md`.
+
+### When to activate
+
+Immediately after the Deployer writes its log row and the PR is open (or the deploy step completes). Do not skip even when the run had failures or escalations — a failed run's retro is the most valuable.
+
+### How to activate
+
+Activate the `delivery_manager` role via Path A (Anthropic provider):
+
+```
+Role: delivery_manager
+Skill to invoke: (none — delivery_manager reads its own role guide)
+Read from state.md: ## Gate 0: Execution Plan → Run Estimates, ## PR
+Read from log.md: all rows
+Write to: pipeline/[run-name]/retro.md (new file)
+Model: claude-haiku-4-5
+Tools: read_files, write_files
+```
+
+The full instructions for the Delivery Manager are in `steering/roles/delivery_manager.md`. Prepend that file to the context brief.
+
+### Output contract
+
+The Delivery Manager writes `pipeline/[run-name]/retro.md`. If that file is absent after the Delivery Manager returns, treat the activation as failed and retry once. Do not skip the retro phase.
+
+After the Delivery Manager completes, the Orchestrator reads `retro.md` and surfaces it to the user:
+
+```
+Retro complete. Sprint report: pipeline/[run-name]/retro.md
+
+Top finding: [one-sentence summary of the highest-priority recommendation from the file]
+```
+
+### retro.md format
+
+See `steering/roles/delivery_manager.md` for the exact template. The file must contain all of:
+- Run correlation header (run name, date, status, PR link, links to state.md and log.md)
+- Token & cost table by role (estimated vs actual with variance %)
+- Run totals table (tokens, cost, duration, retries)
+- Signal summary (2–3 sentences on the dominant pattern)
+- Three recommendation tables: Accuracy / Speed / Token efficiency — each with Finding, Evidence, Action columns
+- Proposed Next Actions priority table (top 3, each with a specific file:section target)
+
+---
+
 ## Gate 0 Estimates
 
 Every Gate 0 execution plan must include a **Run Estimates** block. Compute it as follows.
@@ -658,3 +714,4 @@ $RUNTIME run --rm \
 | `data-governance` | Pre-flight: before any role reads source files |
 | `eval` | Pre-flight: after any model or skill change in `agent-config.yml` |
 | `lessons` | Post-failure: after any escalation or retry-limit hit |
+| Retro Phase | Post-deploy: after every run — activate `delivery_manager` role, writes `retro.md` |
