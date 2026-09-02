@@ -116,7 +116,75 @@ _PROBERS = {
 }
 
 
+def verify_all_role_models(config: dict) -> dict:
+    """Probe each unique (provider, model) pair across all roles.
+
+    Returns {(provider, model): (ok: bool, detail: str)}.
+    Each unique pair is probed exactly once regardless of how many roles share it.
+    """
+    providers_cfg = config.get("providers", {})
+    default_provider = config.get("default_provider", "anthropic")
+
+    # Build a deduplicated set of (provider, model) pairs from all roles.
+    pairs: set = set()
+    for role_cfg in config.get("roles", {}).values():
+        provider = role_cfg.get("provider", default_provider)
+        model = role_cfg.get("model", "")
+        pairs.add((provider, model))
+
+    results: dict = {}
+    for provider, model in pairs:
+        prober = _PROBERS.get(provider)
+        if prober is None:
+            results[(provider, model)] = (False, f"no prober for provider '{provider}'")
+            continue
+
+        prov_cfg = providers_cfg.get(provider, {})
+        raw_key = prov_cfg.get("api_key", "")
+        raw_url = prov_cfg.get("api_url", "")
+        key = _resolve_env(raw_key) if raw_key else ""
+        url = _resolve_env(raw_url) or raw_url
+
+        if not key:
+            results[(provider, model)] = (False, "API key not set")
+            continue
+
+        ok, detail = prober(key, url, model)
+        results[(provider, model)] = (ok, detail)
+
+    return results
+
+
 def main() -> int:
+    if "--verify-models" in sys.argv:
+        # First non-flag positional argument is the config path; fall back to default.
+        args = [a for a in sys.argv[1:] if not a.startswith("--")]
+        config_path = Path(args[0]) if args else CONFIG_PATH
+        config = yaml.safe_load(config_path.read_text())
+
+        results = verify_all_role_models(config)
+
+        print("Verifying all role models…\n")
+        print(f"  {'role':<22}  {'provider':<12}  {'model':<28}  status")
+        print(f"  {'─' * 70}")
+
+        roles = config.get("roles", {})
+        default_provider = config.get("default_provider", "anthropic")
+
+        for role_name, role_cfg in roles.items():
+            provider = role_cfg.get("provider", default_provider)
+            model = role_cfg.get("model", "")
+            ok, detail = results.get((provider, model), (False, "not probed"))
+            status = f"✓ OK" if ok else f"✗ FAIL: {detail}"
+            print(f"  {role_name:<22}  {provider:<12}  {model:<28}  {status}")
+
+        failures = sum(1 for ok, _ in results.values() if not ok)
+        total = len(results)
+        print()
+        print(f"{total} model(s) verified. {failures} failure(s).")
+
+        return 0 if failures == 0 else 1
+
     config_path = Path(sys.argv[1]) if len(sys.argv) > 1 else CONFIG_PATH
     config = yaml.safe_load(config_path.read_text())
     providers = config.get("providers", {})

@@ -188,7 +188,7 @@ if [ -d "$TARGET/scripts" ]; then
   skip "scripts/ already exists"
 else
   cp -r "$REPO_ROOT/scripts" "$TARGET/scripts"
-  info "scripts/ (check_providers.py, validate_config.py)"
+  info "scripts/ (check_providers.py, call_provider.py, validate_config.py)"
 fi
 
 # ── 9. .gitignore ────────────────────────────────────────────────────────────
