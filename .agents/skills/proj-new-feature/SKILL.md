@@ -207,6 +207,23 @@ Also append to `state.md`:
 
 ---
 
-## Step 4: Gate 3 — Await Deploy Approval
+## Step 4: Dist Review (before Gate 3)
+
+Before presenting Gate 3 to the user, review `dist/` and update any files that are stale relative to the changes in this run.
+
+Check each dist file for references to:
+- Scripts in `scripts/` — any new or renamed scripts must be listed
+- Pipeline diagram — any new autonomous roles (e.g. Build Verifier) must appear
+- Architecture notes — any new architectural patterns introduced must be described
+- Install/validate steps — any new CLI flags or entry points must be documented
+
+Files to check: `dist/README.md`, `dist/install.sh`, `dist/uninstall.sh`
+
+Update as needed. If no changes are required, note "dist/ — no updates required" in log.md.
+This step runs autonomously — do not ask the user for approval.
+
+---
+
+## Step 5: Gate 3 — Await Deploy Approval
 
 Present test results **and build check verdict**. Wait for "yes" before invoking `/proj-deploy`.

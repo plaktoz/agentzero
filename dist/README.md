@@ -49,7 +49,7 @@ your-project/
   knowledge_base/         ← lessons from past runs, guardrail candidates
   eval/                   ← golden tests per role, scores log
   pipeline/               ← run state (state.md, log.md per run)
-  scripts/                ← validate_config.py, check_providers.py
+  scripts/                ← validate_config.py, check_providers.py, call_provider.py
 ```
 
 ### Brownfield behaviour
@@ -97,6 +97,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1        # or your proxy
 python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt
 python3 scripts/validate_config.py
 python3 scripts/check_providers.py
+python3 scripts/check_providers.py --verify-models    # probe each role's model/provider
 ```
 
 ---
@@ -143,6 +144,9 @@ Tester Ensemble Phase 2  ← runs tests against code
     │
     ▼
 Quality Gate (autonomous) ─── FAIL → back to Coder
+    │  PASS
+    ▼
+Build Verifier (autonomous) ← install check + smoke tests
     │  PASS
     ▼
 Gate 3: test sign-off ─────────────────────────────────────── human
@@ -220,6 +224,7 @@ It will automatically be available in Claude Code via `/my-custom-skill`.
 
 - **Orchestrator** — the Claude Code session you interact with. Coordinates all other roles. Never writes code directly.
 - **Blackboard** — `pipeline/[run-name]/state.md` is append-only shared state. All roles read from and write to it via the Orchestrator.
+- **Subagent dispatch** — Anthropic-provider roles are spawned via the Agent tool with `model:` set from `agent-config.yml`. Cross-provider roles (e.g. `tester_generator_b`) are dispatched via `scripts/call_provider.py`.
 - **Worktree isolation** — each parallel feature gets its own `git worktree` so Coder agents never share a working directory.
 - **Knowledge base** — lessons extracted from failed runs are distilled into tagged rules and injected into future role briefs automatically.
 - **Eval gate** — before any model or prompt change rolls out, golden tests for affected roles must pass scoring thresholds.
