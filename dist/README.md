@@ -46,10 +46,12 @@ your-project/
     skills -> ../.agents/skills   ← symlink for Claude Code skill loading
   agent-config.yml        ← pipeline configuration (models, cost cap, retry limits)
   .env.example            ← API credential template
-  knowledge_base/         ← lessons from past runs, guardrail candidates
+  steering/               ← orchestrator context: product.md, tech.md, structure.md, backlog.md
+    roles/                ← per-role mandate and output contract (one .md per role)
+  knowledge_base/         ← lessons, guardrails, guardrail candidates, failure patterns
   eval/                   ← golden tests per role, scores log
   pipeline/               ← run state (state.md, log.md per run)
-  scripts/                ← validate_config.py, check_providers.py, call_provider.py
+  scripts/                ← validate_config.py, check_providers.py, call_provider.py, requirements.txt
 ```
 
 ### Brownfield behaviour
@@ -156,6 +158,9 @@ Release Documenter → signoff_package.md
     │
     ▼
 Deployer ── merges PR, runs deploy
+    │
+    ▼
+Delivery Manager (autonomous) ← retro.md (token/cost/duration report)
 ```
 
 ### Key constraints (all configurable in `agent-config.yml`)
@@ -197,7 +202,7 @@ rm -rf /path/to/your-project/.agents/skills/proj-protocol
 ```
 
 Removes: `.agents/skills/`, `.claude/skills` symlink, `.worktrees/`
-Prompts before removing: `pipeline/`, `eval/`, `knowledge_base/`
+Prompts before removing: `pipeline/`, `eval/`, `knowledge_base/`, `steering/`
 Always kept: `agent-config.yml`, `.env.example`, `scripts/`, your source code
 
 ---

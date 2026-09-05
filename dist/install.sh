@@ -64,7 +64,7 @@ if [ "$MODE" = brownfield ]; then
 fi
 
 # ── 1. .agents/skills ────────────────────────────────────────────────────────
-header "1/9  Skills"
+header "1/10  Skills"
 
 if [ -d "$TARGET/.agents/skills" ]; then
   skip ".agents/skills/ already exists — merging new skills only"
@@ -89,7 +89,7 @@ else
 fi
 
 # ── 2. .claude/ setup ────────────────────────────────────────────────────────
-header "2/9  Claude Code config"
+header "2/10  Claude Code config"
 mkdir -p "$TARGET/.claude"
 
 # 2a. CLAUDE.md
@@ -126,7 +126,7 @@ else
 fi
 
 # ── 3. agent-config.yml ──────────────────────────────────────────────────────
-header "3/9  Pipeline config"
+header "3/10  Pipeline config"
 
 if [ -f "$TARGET/agent-config.yml" ]; then
   skip "agent-config.yml already exists — skipped (compare with $REPO_ROOT/agent-config.yml for new fields)"
@@ -136,7 +136,7 @@ else
 fi
 
 # ── 4. .env.example ──────────────────────────────────────────────────────────
-header "4/9  Environment template"
+header "4/10  Environment template"
 
 if [ -f "$TARGET/.env.example" ]; then
   skip ".env.example already exists"
@@ -146,7 +146,7 @@ else
 fi
 
 # ── 5. knowledge_base ────────────────────────────────────────────────────────
-header "5/9  Knowledge base"
+header "5/10  Knowledge base"
 
 if [ -d "$TARGET/knowledge_base" ]; then
   skip "knowledge_base/ already exists"
@@ -157,11 +157,15 @@ else
      "$TARGET/knowledge_base/index.md"
   cp "$REPO_ROOT/knowledge_base/guardrails_candidates.md" \
      "$TARGET/knowledge_base/guardrails_candidates.md"
-  info "knowledge_base/ (lessons/raw, lessons/distilled, index, guardrails)"
+  cp "$REPO_ROOT/knowledge_base/guardrails.yaml" \
+     "$TARGET/knowledge_base/guardrails.yaml"
+  cp "$REPO_ROOT/knowledge_base/failure-patterns.md" \
+     "$TARGET/knowledge_base/failure-patterns.md"
+  info "knowledge_base/ (lessons/raw, lessons/distilled, index, guardrails.yaml, failure-patterns)"
 fi
 
 # ── 6. eval ──────────────────────────────────────────────────────────────────
-header "6/9  Eval golden tests"
+header "6/10  Eval golden tests"
 
 if [ -d "$TARGET/eval" ]; then
   skip "eval/ already exists"
@@ -171,7 +175,7 @@ else
 fi
 
 # ── 7. pipeline working directory ────────────────────────────────────────────
-header "7/9  Pipeline run directory"
+header "7/10  Pipeline run directory"
 
 if [ -d "$TARGET/pipeline" ]; then
   skip "pipeline/ already exists"
@@ -182,17 +186,28 @@ else
 fi
 
 # ── 8. scripts ───────────────────────────────────────────────────────────────
-header "8/9  Utility scripts"
+header "8/10  Utility scripts"
 
 if [ -d "$TARGET/scripts" ]; then
   skip "scripts/ already exists"
 else
   cp -r "$REPO_ROOT/scripts" "$TARGET/scripts"
-  info "scripts/ (check_providers.py, call_provider.py, validate_config.py)"
+  info "scripts/ (validate_config.py, check_providers.py, call_provider.py, requirements.txt)"
 fi
 
-# ── 9. .gitignore ────────────────────────────────────────────────────────────
-header "9/9  .gitignore"
+# ── 9. steering ──────────────────────────────────────────────────────────────
+header "9/10  Steering files"
+
+if [ -d "$TARGET/steering" ]; then
+  skip "steering/ already exists"
+else
+  cp -r "$REPO_ROOT/steering" "$TARGET/steering"
+  role_count=$(ls "$REPO_ROOT/steering/roles" 2>/dev/null | wc -l | tr -d ' ')
+  info "steering/ (product.md, tech.md, structure.md, backlog.md, $role_count role guides)"
+fi
+
+# ── 10. .gitignore ───────────────────────────────────────────────────────────
+header "10/10  .gitignore"
 
 declare -a GITIGNORE_LINES=(
   ".env"
