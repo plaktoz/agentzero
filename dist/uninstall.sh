@@ -6,7 +6,7 @@
 #   ./dist/uninstall.sh /path/to/project # remove from a specific directory
 #
 # What is removed:   .agents/skills/,  .claude/skills symlink, .worktrees/
-# Prompted removal:  pipeline/,  eval/,  knowledge_base/
+# Prompted removal:  pipeline/,  eval/,  knowledge_base/,  steering/
 # Always kept:       agent-config.yml,  .env.example,  scripts/,  your source code
 
 set -euo pipefail
@@ -38,9 +38,10 @@ echo "You will be asked about:"
 echo "  pipeline/             (run state — may contain in-progress work)"
 echo "  eval/                 (golden tests and scores)"
 echo "  knowledge_base/       (lessons and guardrails)"
+echo "  steering/             (orchestrator context and role guides)"
 echo ""
 echo "Always kept:"
-echo "  agent-config.yml      source/scripts/  .env.example  your code"
+echo "  agent-config.yml      scripts/  .env.example  your code"
 echo ""
 
 confirm "Proceed with uninstall?" || { echo "Aborted."; exit 0; }
@@ -141,10 +142,20 @@ if [ -d "$TARGET/knowledge_base" ]; then
   fi
 fi
 
+# ── prompted: steering/ ──────────────────────────────────────────────────────
+if [ -d "$TARGET/steering" ]; then
+  if confirm "Remove steering/ (orchestrator context and role guides)?"; then
+    rm -rf "$TARGET/steering"
+    info "steering/ removed"
+  else
+    kept "steering/"
+  fi
+fi
+
 # ── done ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}Uninstall complete.${NC}"
 echo ""
 echo "Kept: agent-config.yml  .env.example  scripts/"
-echo "      (remove manually if no longer needed)"
+echo "      Remove manually if no longer needed."
 echo ""
