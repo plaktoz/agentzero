@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git add pipeline/*)",
+      "Bash(git commit -m *)",
+      "Bash(git checkout -b *)",
+      "Bash(git worktree *)",
+      "Bash(python scripts/validate_config.py)",
+      "Bash(python scripts/check_providers.py)",
+      "Bash(git ls-remote *)",
+      "Bash(gh repo *)",
+      "Bash(gh issue *)",
+      "Read(pipeline/*)",
+      "Read(steering/*)",
+      "Read(knowledge_base/*)",
+      "Read(agent-config.yml)",
+      "Write(pipeline/*)"
+    ]
+  }
+}
