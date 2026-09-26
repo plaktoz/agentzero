@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # install.sh — deploy the agentzero multi-agent pipeline into a project
 #
-# Usage:
+# Remote (curl | bash):
+#   curl -fsSL https://raw.githubusercontent.com/plaktoz/agentzero/main/dist/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/plaktoz/agentzero/main/dist/install.sh | bash -s -- my-project
+#
+# Local (from a cloned copy):
 #   ./dist/install.sh                  # install into current directory
 #   ./dist/install.sh /path/to/project # install into a specific directory
 #
@@ -10,20 +14,60 @@
 
 set -euo pipefail
 
+REPO="plaktoz/agentzero"
+BRANCH="main"
+
 # ── colours ─────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 info()  { echo -e "${GREEN}+${NC} $*"; }
 skip()  { echo -e "${YELLOW}~${NC} $*"; }
-error() { echo -e "${RED}✗${NC} $*" >&2; }
+error() { echo -e "${RED}!${NC} $*" >&2; exit 1; }
 header(){ echo -e "\n${BOLD}$*${NC}"; }
 
-# ── paths ────────────────────────────────────────────────────────────────────
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="${1:-$(pwd)}"
+# ── detect local vs remote ───────────────────────────────────────────────────
+# When piped from curl, BASH_SOURCE[0] is empty or /dev/stdin
+_src="${BASH_SOURCE[0]:-}"
+if [[ -z "$_src" || "$_src" == /dev/stdin || "$_src" == /proc/self/fd/* ]]; then
+  IS_REMOTE=true
+else
+  IS_REMOTE=false
+  REPO_ROOT="$(cd "$(dirname "$_src")/.." && pwd)"
+fi
 
-if [ ! -d "$TARGET" ]; then
-  error "Target directory does not exist: $TARGET"
-  exit 1
+# ── remote: check deps and download template ─────────────────────────────────
+if [[ "$IS_REMOTE" == true ]]; then
+  command -v curl >/dev/null 2>&1 || error "curl is required but not installed"
+  command -v tar  >/dev/null 2>&1 || error "tar is required but not installed"
+  command -v git  >/dev/null 2>&1 || error "git is required but not installed"
+
+  TMP_DIR="$(mktemp -d)"
+  trap 'rm -rf "$TMP_DIR"' EXIT HUP INT TERM
+
+  echo ""
+  echo -e "${BOLD}agentzero — autonomous multi-agent pipeline installer${NC}"
+  echo "  Source: https://github.com/${REPO}"
+
+  TARBALL="https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz"
+  curl -fsSL "$TARBALL" | tar -xz -C "$TMP_DIR"
+  REPO_ROOT="${TMP_DIR}/$(ls "$TMP_DIR" | head -1)"
+  info "Template downloaded"
+fi
+
+# ── resolve target ────────────────────────────────────────────────────────────
+TARGET="${1:-}"
+
+if [[ -z "$TARGET" ]]; then
+  if [[ "$IS_REMOTE" == true ]]; then
+    error "No project directory specified. Usage: ... | bash -s -- <project-dir>"
+  else
+    TARGET="$(pwd)"
+  fi
+fi
+
+# Create target if it doesn't exist (greenfield remote install)
+if [[ ! -d "$TARGET" ]]; then
+  mkdir -p "$TARGET"
+  info "Created directory: $TARGET"
 fi
 TARGET="$(cd "$TARGET" && pwd)"
 
@@ -50,10 +94,12 @@ else
 fi
 
 # ── header ───────────────────────────────────────────────────────────────────
-echo ""
-echo -e "${BOLD}agentzero — autonomous multi-agent pipeline installer${NC}"
+if [[ "$IS_REMOTE" == false ]]; then
+  echo ""
+  echo -e "${BOLD}agentzero — autonomous multi-agent pipeline installer${NC}"
+fi
 echo "  Mode:   $MODE"
-echo "  Source: $REPO_ROOT"
+[[ "$IS_REMOTE" == false ]] && echo "  Source: $REPO_ROOT"
 echo "  Target: $TARGET"
 echo ""
 
@@ -64,7 +110,7 @@ if [ "$MODE" = brownfield ]; then
 fi
 
 # ── 1. .agents/skills ────────────────────────────────────────────────────────
-header "1/10  Skills"
+header "1/11  Skills"
 
 if [ -d "$TARGET/.agents/skills" ]; then
   skip ".agents/skills/ already exists — merging new skills only"
@@ -89,7 +135,7 @@ else
 fi
 
 # ── 2. .claude/ setup ────────────────────────────────────────────────────────
-header "2/10  Claude Code config"
+header "2/11  Claude Code config"
 mkdir -p "$TARGET/.claude"
 
 # 2a. CLAUDE.md
@@ -125,18 +171,33 @@ else
   info ".claude/skills -> ../.agents/skills (symlink)"
 fi
 
-# ── 3. agent-config.yml ──────────────────────────────────────────────────────
-header "3/10  Pipeline config"
+# 2c. .claude/settings.json (permission allowlist)
+if [ -f "$TARGET/.claude/settings.json" ]; then
+  skip ".claude/settings.json already exists"
+else
+  cp "$REPO_ROOT/.claude/settings.json" "$TARGET/.claude/settings.json"
+  info ".claude/settings.json (permission allowlist)"
+fi
+
+# ── 3. Pipeline config + shared vocabulary ───────────────────────────────────
+header "3/11  Pipeline config"
 
 if [ -f "$TARGET/agent-config.yml" ]; then
-  skip "agent-config.yml already exists — skipped (compare with $REPO_ROOT/agent-config.yml for new fields)"
+  skip "agent-config.yml already exists — skipped (compare with source for new fields)"
 else
   cp "$REPO_ROOT/agent-config.yml" "$TARGET/agent-config.yml"
   info "agent-config.yml"
 fi
 
+if [ -f "$TARGET/CONTEXT.md" ]; then
+  skip "CONTEXT.md already exists"
+else
+  cp "$REPO_ROOT/CONTEXT.md" "$TARGET/CONTEXT.md"
+  info "CONTEXT.md (shared pipeline vocabulary)"
+fi
+
 # ── 4. .env.example ──────────────────────────────────────────────────────────
-header "4/10  Environment template"
+header "4/11  Environment template"
 
 if [ -f "$TARGET/.env.example" ]; then
   skip ".env.example already exists"
@@ -146,7 +207,7 @@ else
 fi
 
 # ── 5. knowledge_base ────────────────────────────────────────────────────────
-header "5/10  Knowledge base"
+header "5/11  Knowledge base"
 
 if [ -d "$TARGET/knowledge_base" ]; then
   skip "knowledge_base/ already exists"
@@ -165,17 +226,20 @@ else
 fi
 
 # ── 6. eval ──────────────────────────────────────────────────────────────────
-header "6/10  Eval golden tests"
+header "6/11  Eval golden tests"
 
 if [ -d "$TARGET/eval" ]; then
   skip "eval/ already exists"
 else
   cp -r "$REPO_ROOT/eval" "$TARGET/eval"
-  info "eval/ (scores-log, golden tests for orchestrator / analyst / coder)"
+  # Remove any scores from template runs — start fresh
+  echo "| timestamp | run | role | score | notes |" > "$TARGET/eval/scores-log.md"
+  echo "|---|---|---|---|---|" >> "$TARGET/eval/scores-log.md"
+  info "eval/ (golden tests for orchestrator / analyst / coder)"
 fi
 
 # ── 7. pipeline working directory ────────────────────────────────────────────
-header "7/10  Pipeline run directory"
+header "7/11  Pipeline run directory"
 
 if [ -d "$TARGET/pipeline" ]; then
   skip "pipeline/ already exists"
@@ -186,7 +250,7 @@ else
 fi
 
 # ── 8. scripts ───────────────────────────────────────────────────────────────
-header "8/10  Utility scripts"
+header "8/11  Utility scripts"
 
 if [ -d "$TARGET/scripts" ]; then
   skip "scripts/ already exists"
@@ -196,7 +260,7 @@ else
 fi
 
 # ── 9. steering ──────────────────────────────────────────────────────────────
-header "9/10  Steering files"
+header "9/11  Steering files"
 
 if [ -d "$TARGET/steering" ]; then
   skip "steering/ already exists"
@@ -207,13 +271,14 @@ else
 fi
 
 # ── 10. .gitignore ───────────────────────────────────────────────────────────
-header "10/10  .gitignore"
+header "10/11  .gitignore"
 
 declare -a GITIGNORE_LINES=(
   ".env"
   ".env.*"
   "pipeline-log.md"
   ".worktrees/"
+  ".claude/settings.local.json"
 )
 
 if [ -f "$TARGET/.gitignore" ]; then
@@ -230,6 +295,26 @@ else
   info ".gitignore (created)"
 fi
 
+# ── 11. git init (greenfield only) ───────────────────────────────────────────
+header "11/11  Git"
+
+if [ -d "$TARGET/.git" ]; then
+  skip "git repo already exists"
+elif [ "$MODE" = greenfield ]; then
+  git -C "$TARGET" init -q
+  git -C "$TARGET" add .
+  git -C "$TARGET" commit -q -m "chore: initial commit from agentzero template"
+  info "git repository initialised with initial commit"
+fi
+
+# ── validate config ───────────────────────────────────────────────────────────
+echo ""
+if command -v python3 >/dev/null 2>&1 && [ -f "$TARGET/scripts/validate_config.py" ]; then
+  python3 "$TARGET/scripts/validate_config.py" "$TARGET/agent-config.yml" 2>/dev/null \
+    && info "agent-config.yml validated" \
+    || echo -e "${YELLOW}~${NC} Config validation failed — review agent-config.yml before first run"
+fi
+
 # ── done ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}Installation complete.${NC}"
@@ -241,22 +326,18 @@ echo "        cp $TARGET/.env.example $TARGET/.env"
 echo "        # edit .env and fill in ANTHROPIC_API_KEY, OPENAI_API_KEY, etc."
 echo ""
 echo "  2.  Review agent-config.yml:"
-echo "        # set cost_governance.max_cost_per_run to your budget"
-echo "        # set deploy.target_environment to local | staging | production"
-echo "        # set test_env.runtime to docker | podman | none"
+echo "        # cost_governance.max_cost_per_run — your budget cap (default \$5.00)"
+echo "        # test_env.runtime                 — docker | podman | none"
+echo "        # deploy.target_environment        — local | staging | production"
 echo ""
 echo "  3.  Install Python dependencies (for validation scripts):"
 echo "        cd $TARGET && python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt"
 echo ""
-echo "  4.  Validate config and check connectivity:"
-echo "        python3 scripts/validate_config.py"
-echo "        python3 scripts/check_providers.py"
-echo ""
 if [ "$MODE" = greenfield ]; then
-  echo "  5.  Start your project in Claude Code:"
+  echo "  4.  Open the project in Claude Code and run:"
   echo "        /proj-start"
 else
-  echo "  5.  Start a pipeline run in Claude Code:"
+  echo "  4.  Open the project in Claude Code and run:"
   echo "        /proj-new-feature   — single feature or bug fix"
   echo "        /proj-epic          — multiple related features"
 fi

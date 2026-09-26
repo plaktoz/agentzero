@@ -18,20 +18,31 @@ Deploy the autonomous multi-agent SDLC pipeline into any project — new (greenf
 
 ## Install
 
-Clone this repo, then run the installer against your project:
+### One-liner (no clone needed)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/plaktoz/agentzero/main/dist/install.sh | bash -s -- my-project
+```
+
+Replace `my-project` with your project directory name. The directory will be created if it doesn't exist.
+
+To install into an existing directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/plaktoz/agentzero/main/dist/install.sh | bash -s -- /path/to/existing-project
+```
+
+### From a local clone
 
 ```bash
 git clone https://github.com/plaktoz/agentzero.git
-cd agentzero
-chmod +x dist/install.sh dist/uninstall.sh
-./dist/install.sh /path/to/your-project
+./agentzero/dist/install.sh my-project
 ```
 
-Or install into the current directory:
+Or into the current directory:
 
 ```bash
-chmod +x dist/install.sh dist/uninstall.sh
-./dist/install.sh
+./agentzero/dist/install.sh
 ```
 
 The installer detects whether your project is greenfield or brownfield and adjusts automatically.
@@ -40,26 +51,30 @@ The installer detects whether your project is greenfield or brownfield and adjus
 
 ```
 your-project/
-  .agents/skills/         ← 27 pipeline skills (Analyst, Architect, Coder, Tester, etc.)
+  .agents/skills/         ← pipeline skills (Analyst, Architect, Coder, Tester, etc.)
   .claude/
     CLAUDE.md             ← Orchestrator instructions (appended if CLAUDE.md exists)
+    settings.json         ← permission allowlist for standard pipeline ops
     skills -> ../.agents/skills   ← symlink for Claude Code skill loading
+  CONTEXT.md              ← shared pipeline vocabulary (pre-filled; add project terms via /proj-start)
   agent-config.yml        ← pipeline configuration (models, cost cap, retry limits)
   .env.example            ← API credential template
   steering/               ← orchestrator context: product.md, tech.md, structure.md, backlog.md
     roles/                ← per-role mandate and output contract (one .md per role)
   knowledge_base/         ← lessons, guardrails, guardrail candidates, failure patterns
   eval/                   ← golden tests per role, scores log
-  pipeline/               ← run state (state.md, log.md per run)
+  pipeline/               ← run state (state.md, log.md per run) — starts empty
   scripts/                ← validate_config.py, check_providers.py, call_provider.py, requirements.txt
 ```
 
 ### Brownfield behaviour
 
 Existing files are never overwritten:
-- `agent-config.yml` — skipped if present (compare with agentzero's version for new fields)
+- `agent-config.yml` — skipped if present (compare with source for new fields)
 - `.agents/skills/[name]` — individual skills skipped if the directory already exists
 - `CLAUDE.md` — agentzero block appended if the file exists and block is not already present
+- `.claude/settings.json` — skipped if present
+- `CONTEXT.md` — skipped if present
 - `knowledge_base/`, `eval/`, `pipeline/` — skipped if directory exists
 
 ---
@@ -99,7 +114,6 @@ OPENAI_BASE_URL=https://api.openai.com/v1        # or your proxy
 python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt
 python3 scripts/validate_config.py
 python3 scripts/check_providers.py
-python3 scripts/check_providers.py --verify-models    # probe each role's model/provider
 ```
 
 ---
@@ -132,7 +146,7 @@ Analyst (to-spec / PRD) ─── Gate 1: spec approval ────────
 Designer (optional, UI) ─── Gate 2: design approval ────────┤
     │                                                         │ human
     ▼
-Architect (to-tickets / codebase-design)
+Architect (codebase-design)
     │
     ▼
 Tester Ensemble Phase 1  ← writes tests from spec (TDD)
@@ -177,20 +191,17 @@ Delivery Manager (autonomous) ← retro.md (token/cost/duration report)
 
 ## Upgrade
 
-To get updated skills after pulling a newer version of agentzero:
+To get updated skills after a new agentzero release:
 
 ```bash
-cd /path/to/agentzero
-git pull
-chmod +x dist/install.sh dist/uninstall.sh
-./dist/install.sh /path/to/your-project
+curl -fsSL https://raw.githubusercontent.com/plaktoz/agentzero/main/dist/install.sh | bash -s -- /path/to/your-project
 ```
 
-The installer only adds new skills — it never overwrites existing ones. To force-update a specific skill, delete the old skill directory first:
+The installer only adds new skills — it never overwrites existing ones. To force-update a specific skill, delete it first:
 
 ```bash
 rm -rf /path/to/your-project/.agents/skills/proj-protocol
-./dist/install.sh /path/to/your-project
+curl -fsSL https://raw.githubusercontent.com/plaktoz/agentzero/main/dist/install.sh | bash -s -- /path/to/your-project
 ```
 
 ---
@@ -198,6 +209,7 @@ rm -rf /path/to/your-project/.agents/skills/proj-protocol
 ## Uninstall
 
 ```bash
+# from a local clone:
 ./dist/uninstall.sh /path/to/your-project
 ```
 
