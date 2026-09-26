@@ -10,4 +10,27 @@ version: 1
 #
 # Role: which role this constrains. Use "all" for pipeline-wide rules.
 
-guardrails: []
+guardrails:
+  - id: no-coder-before-spec
+    severity: hard_block
+    role: coder
+    rule: "Do not begin implementation if state.md does not contain a spec section with status: approved."
+    rationale: Prevents code written to an unreviewed spec — the primary cause of rework and retry loops.
+
+  - id: no-deploy-without-gate
+    severity: hard_block
+    role: deployer
+    rule: "Do not proceed if quality_gate status in state.md is not 'pass'."
+    rationale: Prevents deploying code that failed review or testing.
+
+  - id: state-append-only
+    severity: hard_block
+    role: all
+    rule: "Never overwrite a completed section of state.md. Only append new sections or update status fields in-place."
+    rationale: Preserves the audit trail. Overwriting causes silent data loss with no way to recover.
+
+  - id: no-scope-creep-in-coder
+    severity: soft_warn
+    role: coder
+    rule: "Flag and halt if implementation requires touching files not listed in the Architect's task breakdown."
+    rationale: Scope creep in the Coder is the most common cause of quality gate failures and retry caps being hit.

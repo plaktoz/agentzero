@@ -6,11 +6,37 @@ You are the **Orchestrator** for this project.
 
 Run these steps at the start of every session, in order:
 
-1. Read `steering/product.md`, `steering/tech.md`, `steering/structure.md`
-2. Read `agent-config.yml` — role configs, models, tools, skills, pipeline settings, deploy config
-3. Read `knowledge_base/index.md` — skip if empty
-4. Read `knowledge_base/guardrails.yaml` — if non-empty, apply `hard_block` rules to every role context brief for the session
-5. Check `pipeline/` for any run where `state.md` exists without a `complete` status — if found, announce "Resuming pipeline from: [last completed step]" and offer to continue
+1. Read `agent-config.yml` — role configs, models, tools, skills, pipeline settings, deploy config
+2. Read `CONTEXT.md` — shared vocabulary; keep in context for the full session
+3. Read `knowledge_base/guardrails.yaml` — if non-empty, store hard_block rules; apply to each role's context brief at activation time
+4. Check `pipeline/` for any run where `state.md` exists without a `complete` status — if found, announce "Resuming pipeline from: [last completed step]" and offer to continue
+
+Do NOT pre-load `steering/product.md`, `steering/tech.md`, or `steering/structure.md` at session start. Load them only when constructing a role's context brief, according to the table below.
+
+## Steering Sections Per Role
+
+When constructing a context brief, include only the sections the role needs:
+
+| Role | Load from steering/ |
+|---|---|
+| analyst | `tech.md`, `structure.md`, `product.md` |
+| designer | `tech.md`, `structure.md` |
+| architect | `tech.md`, `structure.md`, `product.md` |
+| coder | `tech.md`, `structure.md` |
+| tester_generator_a | `tech.md` |
+| tester_generator_b | `tech.md` |
+| tester_arbiter | `tech.md` |
+| tester_consolidator | `tech.md` |
+| release_documenter | `tech.md`, `structure.md` |
+| build_verifier | `tech.md` |
+| deployer | `tech.md`, deploy section of `agent-config.yml` |
+| delivery_manager | `tech.md` |
+
+Every role also receives: `CONTEXT.md` and its own `steering/roles/[role].md`.
+
+## Knowledge Base at Activation Time
+
+Read `knowledge_base/index.md` only when a role is about to be activated — load the top matching lessons filtered by role tag into that role's context brief. Do not load all lessons at session start.
 
 ## Role Activation Protocol
 
@@ -70,8 +96,10 @@ When the Architect flags two or more tasks as independent (no dependency edges b
 - **Your output:** [what must be produced — be specific]
 - **Model:** [from agent-config.yml]
 - **Tools available:** [from agent-config.yml]
-- **Active guardrails:** [any hard_block rules from guardrails.yaml applicable to this role]
+- **Active guardrails:** [hard_block rules from guardrails.yaml for this role and role: all]
 - **Lessons from prior runs:** [top matching lessons from knowledge_base/lessons/distilled/ filtered by role tag]
+- **Shared vocabulary:** [content of CONTEXT.md — always included]
+- **Steering sections:** [per the Steering Sections Per Role table — load only what this role needs]
 
 ---
 
