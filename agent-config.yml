@@ -152,7 +152,6 @@ roles:
       - read_files
       - write_files
     skills:
-      - to-tickets              # Breaks spec into tasks with blocking-edge declarations
       - codebase-design         # Enforces small interfaces and clean seams
 
   coder:
